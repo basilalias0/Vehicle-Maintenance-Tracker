@@ -21,8 +21,11 @@ const maintenanceTaskSchema = new mongoose.Schema({
   paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
   stripePaymentIntentId: { type: String },
   vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
-}, 
-{ timestamps: true });
+  taskStatus: { type: String, enum: ['scheduled', 'in progress', 'completed', 'canceled'], default: 'scheduled' }, // Added taskStatus
+  priority: { type: String, enum: ['high', 'medium', 'low'], default: 'medium' }, // Optional: Added priority
+  estimatedDuration: { type: Number }, // Optional: Added estimatedDuration
+  actualDuration: { type: Number }, // Optional: Added actualDuration
+}, { timestamps: true });
 
 const MaintenanceTask = mongoose.model('MaintenanceTask', maintenanceTaskSchema);
 
