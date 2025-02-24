@@ -1,35 +1,16 @@
-const  mongoose  = require("mongoose");
-
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    name: {
-        type: String,
-        required: true,
-        trim: true, 
-      },
-      email: {
-        type: String,
-        required: true,
-        unique: true, 
-        lowercase: true,
-        match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address'],
-      },
-      password: {
-        type: String,
-        required: true,
-        minlength: 6, 
-      },
-      role:{
-        type:String,
-        enum: ['user', 'vendor'],
-        default: 'user'
-      },
-      profileImage:{
-        type:String,
-      }
-},{
-    timestamps:true
-})
+  username: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  role: { type: String, enum: ['owner', 'professional', 'admin'], required: true },
+  verified: { type: Boolean, default: false },
+  registrationDate: { type: Date, default: Date.now },
+  stripeCustomerId: { type: String, default: null },
+  stripeConnectAccountId: { type: String, default: null },
+  profilePicture: { type: String, default: null }
+});
 
-const User = mongoose.model("User",userSchema)
+const User= mongoose.model('User', userSchema);
 module.exports = User;

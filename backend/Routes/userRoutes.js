@@ -1,11 +1,23 @@
-const express = require('express')
-const userController = require('../Controllers/userController')
+const express = require('express');
+const router = express.Router();
 const upload = require('../Middlewares/imageUpload')
-const userRouter = express.Router()
 
+const userController = require('../Controllers/userController');
+const { protect, admin } = require('../Middlewares/isAuth');
 
-userRouter.post("/register",upload.single('imageUrl'),userController.register)
-userRouter.post("/login",userController.loginUser)
-userRouter.get('/logout',userController.logoutUser)
+// Public Routes (No Authentication Needed)
+router.post('/register', userController.register);
+router.post('/login', userController.loginUser);
 
-module.exports = userRouter
+// Protected Routes (Authentication Required)
+router.get('/profile', protect, userController.getUserProfile);
+router.put('/profile', protect, userController.updateUserProfile);
+router.put('/profile/picture', protect, upload.single('profileImage'), userController.updateProfileImage); // Profile picture upload
+router.post('/logout', protect, userController.logoutUser);
+
+// Admin Routes (Authentication and Admin Role Required)
+router.get('/', protect, admin, userController.getUsers);
+router.get('/:id', protect, admin, userController.getUserById);
+router.put('/:id', protect, admin, userController.updateUserById);
+
+module.exports = router;
