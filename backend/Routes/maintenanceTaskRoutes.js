@@ -1,24 +1,30 @@
 const express = require('express');
+const maintenanceTaskController = require('../Controllers/maintenanceTaskController');
+const { protect, authorize } = require('../Middlewares/authMiddleware');
 const maintenanceTaskRouter = express.Router();
-const { protect } = require('../Middlewares/authMiddleware');
-const maintenanceTaskController = require('../Controllers/mantenanceTaskController');
 
-// Create a new maintenance task
-maintenanceTaskRouter.post('/', protect, maintenanceTaskController.createTask);
+// Create a new maintenance task (admin, owner, manager)
+maintenanceTaskRouter.post('/', protect, authorize('admin', 'owner', 'manager'), maintenanceTaskController.createMaintenanceTask);
 
-// Get all maintenance tasks (with optional filters and pagination)
-maintenanceTaskRouter.get('/', protect, maintenanceTaskController.getTasks);
+// Get all maintenance tasks (admin, manager) - with filtering and pagination
+maintenanceTaskRouter.get('/', protect, authorize('admin', 'manager'), maintenanceTaskController.getAllMaintenanceTasks);
 
-// Get a single maintenance task by ID
-maintenanceTaskRouter.get('/:id', protect, maintenanceTaskController.getTaskById);
+// Get maintenance task by ID (authenticated users)
+maintenanceTaskRouter.get('/:id', protect, maintenanceTaskController.getMaintenanceTaskById);
 
-// Update a maintenance task by ID
-maintenanceTaskRouter.put('/:id', protect, maintenanceTaskController.updateTask);
+// Update maintenance task by ID (admin, manager, owner of vehicle)
+maintenanceTaskRouter.put('/:id', protect, authorize('admin', 'manager', 'owner'), maintenanceTaskController.updateMaintenanceTaskById);
 
-// Delete a maintenance task by ID
-maintenanceTaskRouter.delete('/:id', protect, maintenanceTaskController.deleteTask);
+// Delete maintenance task by ID (admin, manager)
+maintenanceTaskRouter.delete('/:id', protect, authorize('admin', 'manager'), maintenanceTaskController.deleteMaintenanceTaskById);
 
-// Get maintenance tasks by Vehicle ID
-maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, maintenanceTaskController.getTasksByVehicle);
+// Get maintenance tasks by vehicle ID (authenticated users, owner of vehicle)
+maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, authorize('owner'), maintenanceTaskController.getMaintenanceTasksByVehicleId);
+
+// Change maintenance task status (admin, manager)
+maintenanceTaskRouter.put('/:taskId/status', protect, authorize('admin', 'manager'), maintenanceTaskController.changeMaintenanceTaskStatus);
+
+// Get tasks by status and store ID (manager)
+maintenanceTaskRouter.get('/status', protect, authorize('manager'), maintenanceTaskController.getTasksByStatus);
 
 module.exports = maintenanceTaskRouter;

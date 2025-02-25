@@ -1,5 +1,5 @@
 const express = require('express')
-const userRouter = require('./userRoutes')
+const userRouter = require('./ownerRouter')
 const vechicleRouter = require('./vehicleRoutes')
 const maintenanceTaskRouter = require('./maintenanceTaskRoutes')
 const vendorRouter = require('./vendorRoutes')

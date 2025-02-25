@@ -84,20 +84,45 @@ const vehicleController = {
               res.send("Vechicle Updated Successfully")
           }),
           
-          deleteVehicle : asyncHandler( async (req, res) => {
-            try {
-              const vehicle = await Vehicle.findByIdAndDelete(req.params.id);
-          
-              if (!vehicle) {
-                return res.status(404).json({ message: 'Vehicle not found' });
-              }
-          
-              res.status(200).json({ message: 'Vehicle deleted successfully' });
-            } catch (error) {
-              console.error(error);
-              res.status(500).json({ message: 'Error deleting vehicle' });
+          deleteVehicle: asyncHandler(async (req, res) => {
+            const { id } = req.params;
+            const user = req.user;
+    
+            if (!mongoose.Types.ObjectId.isValid(id)) {
+                return res.status(400).json({ message: 'Invalid vehicle ID' });
             }
-          })
+    
+            try {
+                const vehicle = await Vehicle.findById(id);
+    
+                if (!vehicle) {
+                    return res.status(404).json({ message: 'Vehicle not found' });
+                }
+    
+                // Check if the logged-in user is an owner and is deleting their own vehicle
+                if (user.role === 'owner' && vehicle.ownerId.toString() !== user._id.toString()) {
+                    return res.status(403).json({ message: 'Not authorized to delete this vehicle' });
+                }
+    
+                await Vehicle.findByIdAndDelete(id);
+                res.status(200).json({ message: 'Vehicle deleted successfully' });
+            } catch (error) {
+                console.error('Delete Vehicle Error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }),
+        
+          getOwnerVehicles: asyncHandler(async (req, res) => {
+            const user = req.user;
+    
+            try {
+                const vehicles = await Vehicle.find({ ownerId: user._id });
+                res.status(200).json(vehicles);
+            } catch (error) {
+                console.error('Get Owner Vehicles Error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+        }),
       };
 
 

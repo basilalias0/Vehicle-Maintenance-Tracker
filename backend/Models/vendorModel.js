@@ -25,6 +25,7 @@ const vendorSchema = new mongoose.Schema({
     role:{type:String,default:"vendor"},
     specialization: { type: String },
     website: { type: String },
+    verified:{type:Boolean, default:false}
 }, { timestamps: true }); // Added timestamps
 
 const Vendor = mongoose.model('Vendor', vendorSchema);
