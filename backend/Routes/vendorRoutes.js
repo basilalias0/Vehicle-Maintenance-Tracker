@@ -1,12 +1,13 @@
 const express = require('express')
-const isAuth = require('../Middlewares/isAuth')
 const vendorController = require('../Controllers/vendorController')
+const { protect } = require('../Middlewares/authMiddleware')
 const vendorRouter = express.Router()
 
-vendorRouter.get('/',isAuth,vendorController.getVendors)
-vendorRouter.post('/create',isAuth,vendorController.createVendor)
-vendorRouter.delete('/:id', isAuth,vendorController.deleteVendor)
-vendorRouter.get('/:id',isAuth,vendorController.getVendorById)
-vendorRouter.put("/:id",isAuth,vendorController.updateVendor)
+
+vendorRouter.get('/',protect,vendorController.getVendors)
+vendorRouter.post('/create',protect,vendorController.createVendor)
+vendorRouter.delete('/:id', protect,vendorController.deleteVendor)
+vendorRouter.get('/:id',protect,vendorController.getVendorById)
+vendorRouter.put("/:id",protect,vendorController.updateVendor)
 
 module.exports = vendorRouter

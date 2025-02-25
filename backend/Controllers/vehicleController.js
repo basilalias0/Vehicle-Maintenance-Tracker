@@ -1,6 +1,6 @@
 const asyncHandler=require('express-async-handler');
+const User = require('../Models/ownerModel');
 const Vehicle = require('../Models/vehicleModel');
-const User = require('../Models/userModel');
 
 const vehicleController = {
     createVehicle :asyncHandler( async (req, res) => {

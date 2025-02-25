@@ -1,6 +1,6 @@
 const express = require('express');
 const maintenanceTaskRouter = express.Router();
-const { protect } = require('../Middlewares/isAuth');
+const { protect } = require('../Middlewares/authMiddleware');
 const maintenanceTaskController = require('../Controllers/mantenanceTaskController');
 
 // Create a new maintenance task
@@ -21,4 +21,4 @@ maintenanceTaskRouter.delete('/:id', protect, maintenanceTaskController.deleteTa
 // Get maintenance tasks by Vehicle ID
 maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, maintenanceTaskController.getTasksByVehicle);
 
-module.exports = router;
+module.exports = maintenanceTaskRouter;

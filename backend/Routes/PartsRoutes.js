@@ -1,11 +1,13 @@
 const express = require('express');
 const partRouter = express.Router();
 const partController = require('../Controllers/partController');
-const isAuth = require('../Middlewares/isAuth');
+const { protect } = require('../Middlewares/authMiddleware');
+// const isAuth = require('../Middlewares/isAuth');
+
 
 
 // All routes below this line will require authentication
-partRouter.use(isAuth) // If you have authentication middleware
+partRouter.use(protect) // If you have authentication middleware
 partRouter.post('/', partController.createPart); // Create a new part
 partRouter.get('/', partController.getParts); // Get all parts (or parts for a user)
 partRouter.get('/:id', partController.getPart); // Get a specific part by ID

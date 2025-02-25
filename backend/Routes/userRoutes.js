@@ -2,8 +2,8 @@ const express = require('express');
 const userRouter = express.Router();
 const upload = require('../Middlewares/imageUpload')
 
-const userController = require('../Controllers/userController');
-const { protect, admin } = require('../Middlewares/isAuth');
+const userController = require('../Controllers/ownerController');
+const { protect, admin } = require('../Middlewares/authMiddleware');
 
 // Public Routes (No Authentication Needed)
 userRouter.post('/register', userController.register);
