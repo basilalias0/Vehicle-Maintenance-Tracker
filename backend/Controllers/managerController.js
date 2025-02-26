@@ -40,11 +40,11 @@ const managerController = {
             }
 
             // Check if store exists
-            const store = await Store.findById(storeId);
-            if (!store) {
-                res.status(400).json({ message: 'Invalid store ID' });
-                return;
-            }
+            // const store = await Store.findById(storeId);
+            // if (!store) {
+            //     res.status(400).json({ message: 'Invalid store ID' });
+            //     return;
+            // }
 
             // Hash password
             const salt = await bcrypt.genSalt(10);
@@ -58,14 +58,13 @@ const managerController = {
             });
 
             if (manager) {
-                // Update store managerId
-                await Store.findByIdAndUpdate(storeId, { managerId: manager._id });
 
                 res.status(201).json({
                     _id: manager._id,
                     username: manager.username,
                     email: manager.email,
-                    token: generateToken(manager._id),
+                    profilePicture:manager.profilePicture,
+                    token: generateToken(manager._id,manager.role),
                 });
             } else {
                 res.status(500).json({ message: 'Failed to create manager' });
@@ -99,7 +98,8 @@ const managerController = {
                     _id: manager._id,
                     username: manager.username,
                     email: manager.email,
-                    token: generateToken(manager._id),
+                    profilePicture:manager.profilePicture,
+                    token: generateToken(manager._id,manager.role),
                 });
             } else {
                 res.status(401).json({ message: 'Invalid email or password' });
@@ -126,50 +126,163 @@ const managerController = {
     }),
 
     // Update manager profile
-    updateManagerProfile: asyncHandler(async (req, res) => {
-        const { username, email, password, storeId } = req.body;
+    addManagerToStore: asyncHandler(async (req, res) => {
+        const { email } = req.body;
+        const loggedInManager = await Manager.findById(req.user._id).populate('storeId');
 
-        // Input Validation
+        if (!loggedInManager) {
+            return res.status(404).json({ message: 'Logged-in manager not found' });
+        }
+
+        if (!loggedInManager.storeId) {
+            return res.status(400).json({ message: 'Logged-in manager is not associated with a store' });
+        }
+
+        try {
+            const newManager = await Manager.findOne({ email });
+
+            if (!newManager) {
+                return res.status(404).json({ message: 'Manager with this email not found' });
+            }
+
+            if (newManager.storeId) {
+                return res.status(400).json({ message: 'Manager is already assigned to a store' });
+            }
+
+            // Automatically verify the new manager
+            newManager.verified = true;
+
+            // Add manager to store managers array
+            const store = await Store.findById(loggedInManager.storeId._id);
+            if (!store) {
+                return res.status(404).json({ message: 'Store not found' });
+            }
+
+            store.managerId.push(newManager._id);
+            await store.save();
+
+            newManager.storeId = loggedInManager.storeId._id;
+            await newManager.save();
+
+            res.status(200).json({ message: 'Manager added to store and verified successfully' });
+        } catch (error) {
+            console.error('Add Manager to Store Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    updateManagerProfileImage: asyncHandler(async (req, res) => {
+        try {
+            const manager = await Manager.findById(req.user._id);
+
+            if (!manager) {
+                return res.status(404).json({ message: 'Manager not found' });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            manager.profilePicture = req.file.path; // Assuming req.file.path contains the Cloudinary URL
+
+            const updatedManager = await manager.save();
+
+            res.json({
+                _id: updatedManager._id,
+                username: updatedManager.username,
+                email: updatedManager.email,
+                profilePicture: updatedManager.profilePicture,
+                token: generateToken(updatedManager._id),
+            });
+        } catch (error) {
+            console.error('Update Manager Profile Picture Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    getManagers: asyncHandler(async (req, res) => {
+        try {
+            const managers = await Manager.find({}); // Retrieve all managers
+
+            res.json(managers);
+        } catch (error) {
+            console.error('Get Managers Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    getManagersInMyStore: asyncHandler(async (req, res) => {
+        try {
+            const loggedInManager = await Manager.findById(req.user._id);
+    
+            if (!loggedInManager) {
+                return res.status(404).json({ message: 'Manager not found' });
+            }
+    
+            if (!loggedInManager.storeId) {
+                return res.status(400).json({ message: 'Manager is not associated with a store' });
+            }
+    
+            const managers = await Manager.find({ storeId: loggedInManager.storeId });
+    
+            res.json(managers);
+        } catch (error) {
+            console.error('Get Managers in My Store Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    getManagerById: asyncHandler(async (req, res) => {
+        const { id } = req.params;
+
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid manager ID' });
+        }
+
+        try {
+            const manager = await Manager.findById(id);
+
+            if (!manager) {
+                return res.status(404).json({ message: 'Manager not found' });
+            }
+
+            res.json(manager);
+        } catch (error) {
+            console.error('Get Manager by ID Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+
+    updateManagerProfile: asyncHandler(async (req, res) => {
+        const { username, email, password } = req.body;
+
         if (email && !validator.isEmail(email)) {
-            res.status(400).json({ message: 'Invalid email format' });
-            return;
+            return res.status(400).json({ message: 'Invalid email format' });
         }
 
         if (password && password.length < 6) {
-            res.status(400).json({ message: 'Password must be at least 6 characters long' });
-            return;
+            return res.status(400).json({ message: 'Password must be at least 6 characters long' });
         }
 
         try {
             const manager = await Manager.findById(req.user._id);
 
-            if (manager) {
-                // Update store managerId
-                if (storeId && storeId.toString() !== manager.storeId.toString()) {
-                    await Store.findOneAndUpdate({ managerId: manager._id }, { managerId: null });
-                    await Store.findByIdAndUpdate(storeId, { managerId: manager._id });
-                    manager.storeId = storeId;
-                }
-
-                manager.username = username || manager.username;
-                manager.email = email || manager.email;
-
-                if (password) {
-                    const salt = await bcrypt.genSalt(10);
-                    manager.password = await bcrypt.hash(password, salt);
-                }
-
-                const updatedManager = await manager.save();
-
-                res.json({
-                    _id: updatedManager._id,
-                    username: updatedManager.username,
-                    email: updatedManager.email,
-                    token: generateToken(updatedManager._id),
-                });
-            } else {
-                res.status(404).json({ message: 'Manager not found' });
+            if (!manager) {
+                return res.status(404).json({ message: 'Manager not found' });
             }
+
+            manager.username = username || manager.username;
+            manager.email = email || manager.email;
+
+            if (password) {
+                const salt = await bcrypt.genSalt(10);
+                manager.password = await bcrypt.hash(password, salt);
+            }
+
+            const updatedManager = await manager.save();
+
+            res.json({
+                _id: updatedManager._id,
+                username: updatedManager.username,
+                email: updatedManager.email,
+                token: generateToken(updatedManager._id),
+            });
         } catch (error) {
             console.error('Update Manager Profile Error:', error);
             res.status(500).json({ message: 'Internal server error' });

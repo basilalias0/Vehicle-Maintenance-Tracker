@@ -1,7 +1,5 @@
 
 const Vehicle = require('../Models/vehicleModel');
-const MaintenanceTask = require('../Models/maintenanceTaskModel');
-const Part = require('../Models/partModel');
 const asyncHandler = require('express-async-handler');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -12,6 +10,9 @@ const Admin = require('../Models/adminModel');
 const Owner = require('../Models/ownerModel');
 const Store = require('../Models/storeModel');
 const Vendor = require('../Models/vendorModel');
+const MaintenanceTask = require('../Models/maintenanceTaskModel');
+const Parts = require('../Models/partsModel');
+const Manager = require('../Models/managerModel');
 
 const adminController = {
     // Register a new admin
@@ -43,8 +44,7 @@ const adminController = {
             }
 
             // Hash password
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(password, salt);
+            const hashedPassword = await bcrypt.hash(password, 10);
 
             // Create admin
             const admin = await Admin.create({
@@ -58,7 +58,7 @@ const adminController = {
                     _id: admin._id,
                     username: admin.username,
                     email: admin.email,
-                    token: generateToken(admin._id),
+                    token: generateToken(admin._id,admin.role),
                 });
             } else {
                 res.status(500).json({ message: 'Failed to create admin' });
@@ -92,7 +92,7 @@ const adminController = {
                     _id: admin._id,
                     username: admin.username,
                     email: admin.email,
-                    token: generateToken(admin._id),
+                    token: generateToken(admin._id,admin.role),
                 });
             } else {
                 res.status(401).json({ message: 'Invalid email or password' });
@@ -162,13 +162,52 @@ const adminController = {
         }
     }),
 
+    //Update admin profile picture
+    updateAdminProfileImage: asyncHandler(async (req, res) => {
+        try {
+            const admin = await Admin.findById(req.user._id);
+
+            if (!admin) {
+                return res.status(404).json({ message: 'Admin not found' });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            admin.profilePicture = req.file.path; // Assuming req.file.path contains the Cloudinary URL
+
+            const updatedAdmin = await admin.save();
+
+            res.json({
+                _id: updatedAdmin._id,
+                username: updatedAdmin.username,
+                email: updatedAdmin.email,
+                profilePicture: updatedAdmin.profilePicture,
+                token: generateToken(updatedAdmin._id),
+            });
+        } catch (error) {
+            console.error('Update Admin Profile Picture Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+
     // Get all users (including admins, managers, owners)
     getAllUsers: asyncHandler(async (req, res) => {
+        const { username, email, role } = req.query;
+        let filters = {};
+        if (username) filters.username = { $regex: username, $options: 'i' };
+        if (email) filters.email = { $regex: email, $options: 'i' };
+
         try {
-            const admins = await Admin.find({}).select('-password');
-            const owners = await Owner.find({}).select('-password');
-            const stores = await Store.find({}).select('-password');
-            const allUsers = [...admins, ...owners, ...stores];
+            let admins = [], owners = [], stores = [], managers = [];
+
+            if (!role || role === 'admin') admins = await Admin.find(filters).select('-password');
+            if (!role || role === 'owner') owners = await Owner.find(filters).select('-password');
+            if (!role || role === 'store') stores = await Store.find(filters);
+            if (!role || role === 'manager') managers = await Manager.find(filters).select('-password');
+
+            const allUsers = [...admins, ...owners, ...stores, ...managers];
             res.json(allUsers);
         } catch (error) {
             console.error('Get All Users Error:', error);
@@ -176,10 +215,15 @@ const adminController = {
         }
     }),
 
-    // Get all stores
     getAllStores: asyncHandler(async (req, res) => {
+        const { name, address, managerId } = req.query;
+        let filters = {};
+        if (name) filters.name = { $regex: name, $options: 'i' };
+        if (address) filters.address = { $regex: address, $options: 'i' };
+        if (managerId && mongoose.Types.ObjectId.isValid(managerId)) filters.managerId = managerId;
+
         try {
-            const stores = await Store.find({});
+            const stores = await Store.find(filters);
             res.json(stores);
         } catch (error) {
             console.error('Get All Stores Error:', error);
@@ -187,10 +231,15 @@ const adminController = {
         }
     }),
 
-    // Get all vehicles
     getAllVehicles: asyncHandler(async (req, res) => {
+        const { make, model, ownerId } = req.query;
+        let filters = {};
+        if (make) filters.make = { $regex: make, $options: 'i' };
+        if (model) filters.model = { $regex: model, $options: 'i' };
+        if (ownerId && mongoose.Types.ObjectId.isValid(ownerId)) filters.ownerId = ownerId;
+
         try {
-            const vehicles = await Vehicle.find({});
+            const vehicles = await Vehicle.find(filters);
             res.json(vehicles);
         } catch (error) {
             console.error('Get All Vehicles Error:', error);
@@ -198,34 +247,51 @@ const adminController = {
         }
     }),
 
-    // Get all maintenance tasks
     getAllMaintenanceTasks: asyncHandler(async (req, res) => {
+        const { vehicleId, taskType, storeId, vendorId } = req.query;
+        let filters = {};
+        if (vehicleId && mongoose.Types.ObjectId.isValid(vehicleId)) filters.vehicleId = vehicleId;
+        if (taskType) filters.taskType = { $regex: taskType, $options: 'i' };
+        if (storeId && mongoose.Types.ObjectId.isValid(storeId)) filters.storeId = storeId;
+        if (vendorId && mongoose.Types.ObjectId.isValid(vendorId)) filters.vendorId = vendorId;
+
         try {
-            const tasks = await MaintenanceTask.find({});
+            const tasks = await MaintenanceTask.find(filters);
             res.json(tasks);
         } catch (error) {
             console.error('Get All Maintenance Tasks Error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
-    //Get all parts
+
     getAllParts: asyncHandler(async (req, res) => {
-        try{
-            const parts = await Part.find({});
+        const { partNumber, description, vendorId } = req.query;
+        let filters = {};
+        if (partNumber) filters.partNumber = { $regex: partNumber, $options: 'i' };
+        if (description) filters.description = { $regex: description, $options: 'i' };
+        if (vendorId && mongoose.Types.ObjectId.isValid(vendorId)) filters.vendorId = vendorId;
+
+        try {
+            const parts = await Parts.find(filters);
             res.json(parts);
         } catch (error) {
-            console.error("Get all parts Error", error);
-            res.status(500).json({message: "Internal server error"});
+            console.error('Get all Parts Error', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     }),
-    //Get all vendors
+
     getAllVendors: asyncHandler(async (req, res) => {
-        try{
-            const vendors = await Vendor.find({});
+        const { name, specialization } = req.query;
+        let filters = {};
+        if (name) filters.name = { $regex: name, $options: 'i' };
+        if (specialization) filters.specialization = { $regex: specialization, $options: 'i' };
+
+        try {
+            const vendors = await Vendor.find(filters);
             res.json(vendors);
         } catch (error) {
-            console.error("Get all vendors Error", error);
-            res.status(500).json({message: "Internal server error"});
+            console.error('Get all vendors Error', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     }),
     verifyManager: asyncHandler(async (req, res) => {
@@ -254,6 +320,48 @@ const adminController = {
             res.json({ message: 'Manager verified successfully', manager });
         } catch (error) {
             console.error('Verify Manager Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    verifyAdmin: asyncHandler(async (req, res) => {
+        const { adminId } = req.params;
+        const verifyingAdminId = req.user._id;
+
+        if (!mongoose.Types.ObjectId.isValid(adminId)) {
+            return res.status(400).json({ message: 'Invalid admin ID' });
+        }
+
+        if (adminId === verifyingAdminId.toString()) {
+            return res.status(400).json({ message: 'Admin cannot verify themselves.' });
+        }
+
+        try {
+            const adminToVerify = await Admin.findById(adminId);
+            const verifyingAdmin = await Admin.findById(verifyingAdminId);
+
+            if (!adminToVerify) {
+                return res.status(404).json({ message: 'Admin to verify not found' });
+            }
+
+            if (!verifyingAdmin) {
+                return res.status(404).json({ message: 'Verifying admin not found' });
+            }
+
+            if (!verifyingAdmin.verified) {
+                return res.status(403).json({ message: 'Only verified admins can verify other admins.' });
+            }
+
+            if (adminToVerify.verified) {
+                return res.status(400).json({ message: 'Admin is already verified' });
+            }
+
+            adminToVerify.verified = true;
+            adminToVerify.verifiedBy = verifyingAdminId;
+            await adminToVerify.save();
+
+            res.json({ message: 'Admin verified successfully', admin: adminToVerify });
+        } catch (error) {
+            console.error('Verify Admin Error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
