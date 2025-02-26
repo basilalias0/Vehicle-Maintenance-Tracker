@@ -12,7 +12,7 @@ const Owner = require('../Models/ownerModel');
 const ownerController = {
     // Register a new owner
     registerOwner: asyncHandler(async (req, res) => {
-        const { username, email, password, firstName, lastName, phoneNumber, address } = req.body;
+        const { username, email, password, phoneNumber, address } = req.body;
 
         // Input Validation
         if (!username || !email || !password) {
@@ -47,8 +47,6 @@ const ownerController = {
                 username,
                 email,
                 password: hashedPassword,
-                firstName,
-                lastName,
                 phoneNumber,
                 address,
             });
@@ -58,7 +56,7 @@ const ownerController = {
                     _id: owner._id,
                     username: owner.username,
                     email: owner.email,
-                    token: generateToken(owner._id),
+                    token: generateToken(owner._id,owner.role),
                 });
             } else {
                 res.status(500).json({ message: 'Failed to create owner' });
@@ -92,7 +90,7 @@ const ownerController = {
                     _id: owner._id,
                     username: owner.username,
                     email: owner.email,
-                    token: generateToken(owner._id),
+                    token: generateToken(owner._id,owner.role),
                 });
             } else {
                 res.status(401).json({ message: 'Invalid email or password' });
@@ -120,51 +118,55 @@ const ownerController = {
 
     // Update owner profile
     updateOwnerProfile: asyncHandler(async (req, res) => {
-        const { username, email, password, firstName, lastName, phoneNumber, address } = req.body;
-
-        // Input Validation
-        if (email && !validator.isEmail(email)) {
-            res.status(400).json({ message: 'Invalid email format' });
-            return;
-        }
-
-        if (password && password.length < 6) {
-            res.status(400).json({ message: 'Password must be at least 6 characters long' });
-            return;
-        }
-
-        try {
-            const owner = await Owner.findById(req.user._id);
-
-            if (owner) {
+            const { username, email, password, phoneNumber, address } = req.body;
+        
+            // Input Validation
+            if (email && !validator.isEmail(email)) {
+                return res.status(400).json({ message: 'Invalid email format' });
+            }
+        
+            if (password && password.length < 6) {
+                return res.status(400).json({ message: 'Password must be at least 6 characters long' });
+            }
+        
+            try {
+                const owner = await Owner.findById(req.user._id);
+        
+                if (!owner) {
+                    return res.status(404).json({ message: 'Owner not found' });
+                }
+        
+                // Check if email is already taken by another owner
+                if (email && email !== owner.email) {
+                    const emailExists = await Owner.findOne({ email });
+                    if (emailExists) {
+                        return res.status(409).json({ message: 'Email is already taken by another user' });
+                    }
+                }
+        
                 owner.username = username || owner.username;
                 owner.email = email || owner.email;
-                owner.firstName = firstName || owner.firstName;
-                owner.lastName = lastName || owner.lastName;
                 owner.phoneNumber = phoneNumber || owner.phoneNumber;
                 owner.address = address || owner.address;
-
+        
                 if (password) {
                     const salt = await bcrypt.genSalt(10);
                     owner.password = await bcrypt.hash(password, salt);
                 }
-
+        
                 const updatedOwner = await owner.save();
-
+        
                 res.json({
                     _id: updatedOwner._id,
                     username: updatedOwner.username,
                     email: updatedOwner.email,
                     token: generateToken(updatedOwner._id),
                 });
-            } else {
-                res.status(404).json({ message: 'Owner not found' });
+            } catch (error) {
+                console.error('Update Owner Profile Error:', error);
+                res.status(500).json({ message: 'Internal server error' });
             }
-        } catch (error) {
-            console.error('Update Owner Profile Error:', error);
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }),
+        }),
     // Get owner vehicles
     getOwnerVehicles: asyncHandler(async (req, res) => {
         try {

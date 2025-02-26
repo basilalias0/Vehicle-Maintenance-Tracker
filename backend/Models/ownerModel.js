@@ -8,16 +8,8 @@ const ownerSchema = new mongoose.Schema({
     verified: { type: Boolean, default: false },
     registrationDate: { type: Date, default: Date.now },
     profilePicture: { type: String, default: null },
-    firstName: { type: String },
-    lastName: { type: String },
-    phoneNumber: { type: String },
-    address: {
-        street: { type: String },
-        city: { type: String },
-        state: { type: String },
-        zipCode: { type: String },
-        country: { type: String },
-    },
+    phoneNumber: { type: Number },
+    address: {type:String},
     vehicles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }], // Array of vehicle IDs
     complaints: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Complaint' }], // Array of complaint IDs
     paymentMethods: [{
