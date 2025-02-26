@@ -1,4 +1,4 @@
-Owner
+
 const Vehicle = require('../Models/vehicleModel');
 const Complaint = require('../Models/complaintModel');
 const asyncHandler = require('express-async-handler');
@@ -207,6 +207,34 @@ const ownerController = {
             }
         } catch (error) {
             console.error('Add Payment Method Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    updateOwnerProfileImage: asyncHandler(async (req, res) => {
+        try {
+            const owner = await Owner.findById(req.user._id);
+
+            if (!owner) {
+                return res.status(404).json({ message: 'Owner not found' });
+            }
+
+            if (!req.file) {
+                return res.status(400).json({ message: 'No file uploaded' });
+            }
+
+            owner.profilePicture = req.file.path; // Assuming req.file.path contains the Cloudinary URL or file path
+
+            const updatedOwner = await owner.save();
+
+            res.json({
+                _id: updatedOwner._id,
+                username: updatedOwner.username,
+                email: updatedOwner.email,
+                profilePicture: updatedOwner.profilePicture,
+                token: generateToken(updatedOwner._id),
+            });
+        } catch (error) {
+            console.error('Update Owner Profile Picture Error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }),

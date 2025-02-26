@@ -1,6 +1,6 @@
 const express = require('express');
 const ownerRouter = express.Router();
-const upload = require('../Middlewares/uploadMiddleware'); // Changed to dynamic upload
+const upload = require('../Middlewares/imageUpload'); 
 const ownerController = require('../Controllers/ownerController');
 const { protect } = require('../Middlewares/authMiddleware');
 
@@ -12,6 +12,5 @@ ownerRouter.post('/login', ownerController.loginOwner); // Updated controller fu
 ownerRouter.get('/profile', protect, ownerController.getOwnerProfile); // Updated controller function name
 ownerRouter.put('/profile', protect, ownerController.updateOwnerProfile); // Updated controller function name
 ownerRouter.put('/profile/picture', protect, upload('owners').single('profileImage'), ownerController.updateOwnerProfileImage); // Updated controller function name, dynamic upload
-ownerRouter.post('/logout', protect, ownerController.logoutOwner); // Updated controller function name
 
 module.exports = ownerRouter;
