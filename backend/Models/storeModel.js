@@ -42,8 +42,9 @@ const StoreSchema = new mongoose.Schema({
         enum: ['open', 'closed', 'maintenance'],
         default: 'open',
     },
-    managerId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
-    vehiclesRepaired: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }], // Added vehiclesRepaired
+    managerId: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Manager' }],
+    vehiclesRepaired: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Vehicle' }],
+    deletionRequested: { type: Boolean, default: false },
 },{timestamps:true});
 
 const Store = mongoose.model('Store', StoreSchema);
