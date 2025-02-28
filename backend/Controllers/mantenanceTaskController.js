@@ -108,49 +108,67 @@ const maintenanceTaskController = {
         }
     }),
 
-    // Update maintenance task by ID
     updateMaintenanceTaskById: asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const updateData = req.body;
-    const manager = req.user;
-    const storeId = manager.storeId;
-
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ message: 'Invalid maintenance task ID' });
-    }
-
-    try {
-        const task = await MaintenanceTask.findById(id);
-
-        if (!task || task.storeId.toString() !== storeId.toString()) {
-            return res.status(403).json({ message: "Not authorized to update this task" });
+        const { id } = req.params;
+        const { vendorId, partsReplaced, ...updateData } = req.body; // Extract vendorId and partsReplaced
+        const manager = req.user;
+        const storeId = manager.storeId;
+    
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ message: 'Invalid maintenance task ID' });
         }
-
-        if (updateData.taskStatus && updateData.taskStatus === 'completed') {
-            updateData.completedDate = new Date();
-            if(!updateData.completedMileage){
-                return res.status(400).json({message: "completedMileage is required when task is completed."})
+    
+        try {
+            const task = await MaintenanceTask.findById(id);
+    
+            if (!task || task.storeId.toString() !== storeId.toString()) {
+                return res.status(403).json({ message: "Not authorized to update this task" });
             }
+    
+            if (updateData.taskStatus && updateData.taskStatus === 'completed') {
+                updateData.completedDate = new Date();
+                if (!updateData.completedMileage) {
+                    return res.status(400).json({ message: "completed Mileage is required when task is completed." });
+                }
+    
+                // Handle vendor information
+                if (vendorId) {
+                    updateData.vendorId = vendorId;
+    
+                    // Validate partsReplaced if vendorId is provided
+                    if (partsReplaced && Array.isArray(partsReplaced)) {
+                        updateData.partsReplaced = partsReplaced.map(part => ({
+                            partId: part.partId,
+                            vendorId: vendorId, // Add vendorId to each part
+                            quantity: part.quantity,
+                        }));
+                    } else {
+                        return res.status(400).json({ message: "partsReplaced is required when vendorId is provided for a completed task." });
+                    }
+                } else if (partsReplaced) {
+                     return res.status(400).json({message: "vendorId is required when partsReplaced is provided for a completed task."})
+                }
+    
+            }
+    
+            const updatedTask = await MaintenanceTask.findByIdAndUpdate(id, updateData, { new: true })
+                .populate('vehicleId')
+                .populate('partsReplaced.partId')
+                .populate('vendorId')
+                .populate('storeId');
+    
+            if (!updatedTask) {
+                return res.status(404).json({ message: 'Maintenance task not found' });
+            }
+            res.json(updatedTask);
+        } catch (error) {
+            console.error('Update Maintenance Task Error:', error);
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({ message: error.message });
+            }
+            res.status(500).json({ message: 'Internal server error' });
         }
-
-        const updatedTask = await MaintenanceTask.findByIdAndUpdate(id, updateData, { new: true })
-            .populate('vehicleId')
-            .populate('partsReplaced.partId')
-            .populate('vendorId')
-            .populate('storeId');
-
-        if (!updatedTask) {
-            return res.status(404).json({ message: 'Maintenance task not found' });
-        }
-        res.json(updatedTask);
-    } catch (error) {
-        console.error('Update Maintenance Task Error:', error);
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ message: error.message });
-        }
-        res.status(500).json({ message: 'Internal server error' });
-    }
-}),
+    }),
 
     // Delete maintenance task by ID
     deleteMaintenanceTaskById: asyncHandler(async (req, res) => {

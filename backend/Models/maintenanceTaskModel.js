@@ -8,13 +8,12 @@ const maintenanceTaskSchema = new mongoose.Schema({
     completedDate: { type: Date },
     completedMileage: { type: Number },
     serviceProvider: { type: String },
-    partsReplaced: [
-        {
-            partId: {type: mongoose.Schema.Types.ObjectId, ref: 'Part', required: true},
-            quantity: { type: Number, min: 1, default: 1 },
-            cost: { type: Number, min: 0 },
-        },
-    ],
+    vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }, // Vendor assigned to the task
+    partsReplaced: [{
+        partId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parts' },
+        vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }, // Vendor who provided the part
+        quantity: { type: Number },
+    }],
     laborCost: { type: Number },
     notes: { type: String },
     reminderSent: { type: Boolean, default: false },
