@@ -26,8 +26,8 @@ const ComplaintSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['open', 'in-progress', 'resolved', 'escalated'],
-        default: 'open',
+        enum: ['in-progress', 'resolved', 'escalated','not-escalated'],
+        default: 'not-escalated',
     },
     escalated: {
         type: Boolean,
