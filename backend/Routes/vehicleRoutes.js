@@ -1,24 +1,27 @@
 const express = require('express');
 const vehicleController = require('../Controllers/vehicleController');
 const { protect, authorize } = require('../Middlewares/authMiddleware');
-const vechicleRouter = express.Router();
+const vehicleRouter = express.Router();
 
-// Create a new vehicle (admin or owner)
-vechicleRouter.post("/create", protect, authorize('admin', 'owner'), vehicleController.createVehicle);
+// Create a new vehicle (manager)
+vehicleRouter.post("/create", protect, authorize('manager'), vehicleController.createVehicle);
 
-// Get all vehicles (admin only)
-vechicleRouter.get("/get-vehicles", protect, authorize('admin'), vehicleController.getVehicles);
+// Get all vehicles (admin)
+vehicleRouter.get("/get-vehicles", protect, authorize('admin'), vehicleController.getVehicles);
 
 // Get a vehicle by ID (authenticated users)
-vechicleRouter.get("/:id", protect, vehicleController.getVehicleById);
+vehicleRouter.get("/:id", protect, vehicleController.getVehicleById);
 
-// Update a vehicle by ID (admin or owner)
-vechicleRouter.put("/:id", protect, authorize('admin', 'owner'), vehicleController.updateVehicle);
+// Update a vehicle by ID (manager)
+vehicleRouter.put("/:id", protect, authorize('manager'), vehicleController.updateVehicle);
 
-// Delete a vehicle by ID (admin or owner)
-vechicleRouter.delete('/:id', protect, authorize('admin', 'owner'), vehicleController.deleteVehicle);
+// Delete a vehicle by ID (manager)
+vehicleRouter.delete('/:id', protect, authorize('manager'), vehicleController.deleteVehicle);
 
 // Get vehicles of the owner
-vechicleRouter.get("/owner/vehicles", protect, authorize('owner'), vehicleController.getOwnerVehicles);
+vehicleRouter.get("/owner/vehicles", protect, authorize('owner'), vehicleController.getOwnerVehicles);
 
-module.exports = vechicleRouter;
+// Get vehicles of a store (manager)
+vehicleRouter.get("/store/vehicles", protect, authorize('manager'), vehicleController.getStoreVehicles);
+
+module.exports = vehicleRouter;

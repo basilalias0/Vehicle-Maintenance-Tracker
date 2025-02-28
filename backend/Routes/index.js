@@ -3,6 +3,7 @@ const adminRouter = require('./adminRouter')
 const managerRouter = require('./managerRouter')
 const ownerRouter = require('./ownerRouter')
 const storeRouter = require('./storeRouter')
+const vechicleRouter = require('./vehicleRoutes')
 const router = express()
 
 
@@ -10,5 +11,6 @@ router.use("/admin",adminRouter)
 router.use("/manager",managerRouter)
 router.use("/owner",ownerRouter)
 router.use("/store",storeRouter)
+router.use('/vehicle',vechicleRouter)
 
 module.exports = router

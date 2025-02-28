@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const vehicleSchema = new mongoose.Schema({
-    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    ownerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Owner', required: true },
     make: { type: String, required: true },
     model: { type: String, required: true },
     year: { type: Number, required: true },
@@ -14,6 +14,7 @@ const vehicleSchema = new mongoose.Schema({
     image: { type: String },
     group: { type: String },
     status: {type: String, enum: ['active', 'inactive'], default: 'active'},
+    storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
     maintenanceStores: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }] // Added maintenanceStores
 },{timestamps:true});
 
