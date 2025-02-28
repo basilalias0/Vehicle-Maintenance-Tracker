@@ -25,6 +25,7 @@ const maintenanceTaskSchema = new mongoose.Schema({
     priority: { type: String, enum: ['high', 'medium', 'low'], default: 'medium' },
     estimatedDuration: { type: Number },
     actualDuration: { type: Number },
+    mileage: {type: Number},
     mileageUnits: {type: String, enum: ['miles', 'kilometers'], default: 'miles'},
     storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Store', required: true} // Added storeId
 }, { timestamps: true });

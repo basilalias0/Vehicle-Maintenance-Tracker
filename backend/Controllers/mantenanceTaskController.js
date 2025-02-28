@@ -1,31 +1,33 @@
 const MaintenanceTask = require('../Models/maintenanceTaskModel');
 const Vehicle = require('../Models/vehicleModel');
-const Part = require('../Models/partModel');
 const Vendor = require('../Models/vendorModel');
 const Store = require('../Models/storeModel');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const Parts = require('../Models/partsModel');
 
 const maintenanceTaskController = {
     // Create a new maintenance task
     createMaintenanceTask: asyncHandler(async (req, res) => {
-        const { vehicleId, taskType, scheduledDate, scheduledMileage, laborCost, notes, vendorId, priority, estimatedDuration, mileageUnits } = req.body;
+        const {taskType, scheduledDate, scheduledMileage, laborCost, notes, priority, estimatedDuration, mileageUnits } = req.body;
         const manager = req.user;
         const storeId = manager.storeId;
+        const {vehicleId} = req.params
     
         // Input Validation
         if (!vehicleId || !taskType || !storeId) {
             return res.status(400).json({ message: 'Vehicle, task type, and store are required' });
         }
     
-        if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(storeId) || (vendorId && !mongoose.Types.ObjectId.isValid(vendorId))) {
-            return res.status(400).json({ message: 'Invalid vehicle, store, or vendor ID' });
+        if (!mongoose.Types.ObjectId.isValid(vehicleId) || !mongoose.Types.ObjectId.isValid(storeId)) {
+            return res.status(400).json({ message: 'Invalid vehicle, store' });
         }
+        
     
         try {
             const vehicle = await Vehicle.findById(vehicleId);
-            if (!vehicle || vehicle.storeId.toString() !== storeId.toString()) {
-                return res.status(400).json({ message: "Vehicle not found or does not belong to your store." });
+            if (!vehicle) {
+                return res.status(400).json({ message: "Vehicle not found" });
             }
     
             const store = await Store.findById(storeId);
@@ -40,7 +42,6 @@ const maintenanceTaskController = {
                 scheduledMileage,
                 laborCost,
                 notes,
-                vendorId,
                 storeId,
                 priority,
                 estimatedDuration,
@@ -77,7 +78,7 @@ const maintenanceTaskController = {
             const task = await MaintenanceTask.findById(id)
                 .populate({
                     path: 'vehicleId',
-                    populate: { path: 'user' } // Populate vehicle and user details
+                    populate: { path: 'ownerId' } // Populate vehicle and user details
                 })
                 .populate('partsReplaced.partId')
                 .populate('vendorId')
@@ -90,6 +91,19 @@ const maintenanceTaskController = {
             res.json(task);
         } catch (error) {
             console.error('Get Maintenance Task by ID Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+    getAllMaintenanceTasks: asyncHandler(async (req, res) => {
+        try {
+            const tasks = await MaintenanceTask.find({})
+                .populate('vehicleId')
+                .populate('partsReplaced.partId')
+                .populate('vendorId')
+                .populate('storeId');
+            res.json(tasks);
+        } catch (error) {
+            console.error('Get All Maintenance Tasks Error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
@@ -213,7 +227,8 @@ const maintenanceTaskController = {
       }
   }),
   getTasksByStatus: asyncHandler(async (req, res) => {
-    const { status, storeId } = req.query;
+    const { status } = req.query;
+    const storeId = req.user.storeId;
 
     if (!['scheduled', 'in progress', 'completed', 'canceled'].includes(status)) {
         return res.status(400).json({ message: 'Invalid task status' });

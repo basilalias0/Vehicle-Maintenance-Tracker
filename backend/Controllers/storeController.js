@@ -31,7 +31,6 @@ createStore: asyncHandler(async (req, res) => {
         let locationData = {};
         if (address) {
             const encodedAddress = encodeURIComponent(address);
-            console.log('Encoded Address:', encodedAddress);
 
             // Nominatim API call with User-Agent
             const nominatimResponse = await axios.get(
@@ -43,8 +42,6 @@ createStore: asyncHandler(async (req, res) => {
                 }
             );
 
-            console.log('Nominatim Response:', nominatimResponse.data);
-
             if (nominatimResponse.data && nominatimResponse.data.length > 0) {
                 const { lat, lon } = nominatimResponse.data[0];
                 locationData = {
@@ -54,7 +51,7 @@ createStore: asyncHandler(async (req, res) => {
             } else {
                 console.log('No geocoding data found. Saving store without coordinates.');
                 // Optionally, you could throw an error here if coordinates are mandatory:
-                // throw new Error('Could not geocode address');
+                throw new Error('Could not geocode address');
             }
         }
 
