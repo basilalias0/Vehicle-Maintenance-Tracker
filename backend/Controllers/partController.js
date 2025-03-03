@@ -1,13 +1,14 @@
-const Parts = require('../Models/partModel');
 const Vendor = require('../Models/vendorModel'); // Import Vendor model
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const Parts = require('../Models/partsModel');
 
 const partController = {
     // Create a new part
     createPart: asyncHandler(async (req, res) => {
-      const { partNumber, description, price, stockQuantity, image } = req.body;
+      const { partNumber, description, price, stockQuantity } = req.body;
       const vendorId = req.user._id; // Get vendorId from authentication middleware
+      const image = req.file ? req.file.path : null;
   
       // Input Validation
       if (!partNumber || !description || !price) {
@@ -76,7 +77,8 @@ const partController = {
     // Update part by ID
     updatePart: asyncHandler(async (req, res) => {
         const { id } = req.params;
-        const { partNumber, description, price, vendorId, stockQuantity, image } = req.body;
+        const { partNumber, description, price, vendorId, stockQuantity } = req.body;
+        const image = req.file ? req.file.path : null;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid part ID' });
