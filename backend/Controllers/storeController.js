@@ -11,7 +11,7 @@ const storeController = {
     
 
 createStore: asyncHandler(async (req, res) => {
-    const { name, address, openingHours, email, phone, location, status, vehiclesRepaired } = req.body;
+    const { name, address, openingHours, email, phone, status, vehiclesRepaired } = req.body;
     const manager = req.user;
 
     // Input Validation

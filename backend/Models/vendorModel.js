@@ -23,7 +23,8 @@ const vendorSchema = new mongoose.Schema({
     },
     address: { type: String },
     role:{type:String,default:"vendor"},
-    specialization: { type: String },
+    password:{type:String,required:true},
+    specialization: [{ type: String }],
     website: { type: String },
     verified:{type:Boolean, default:false}
 }, { timestamps: true }); // Added timestamps

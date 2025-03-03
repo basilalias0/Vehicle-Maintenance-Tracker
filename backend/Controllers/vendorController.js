@@ -1,38 +1,84 @@
 const Vendor = require('../Models/vendorModel');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
+const generateToken = require('../utils/generateToken'); // Create this utility
+const bcrypt = require('bcryptjs')
 
 const vendorController = {
-    createVendor: asyncHandler(async (req, res) => {
-        const { name, contactPerson, phoneNumber, email, address, specialization, website } = req.body;
+    // Self-registration for vendors (public endpoint)
+    registerVendor : asyncHandler(async (req, res) => {
+    const { name, contactPerson, phoneNumber, email, password, address, specialization, website } = req.body;
 
-        // Input Validation
-        if (!name || !address || !specialization) {
-            return res.status(400).json({ message: 'Name, address, and specialization are required' });
+    if (!name || !email || !password || !address || !specialization || !Array.isArray(specialization) || specialization.length === 0) {
+        return res.status(400).json({ message: 'Name, email, password, address, and at least one specialization are required' });
+    }
+
+    try {
+        const vendorExists = await Vendor.findOne({ email });
+        if (vendorExists) {
+            return res.status(400).json({ message: 'Vendor already exists' });
         }
+        const hashedPassword = await bcrypt.hash(password, 10);
 
-        try {
-            const vendor = await Vendor.create({
-                name,
-                contactPerson,
-                phoneNumber,
-                email,
-                address,
-                specialization,
-                website,
-                verified: false, // Vendors start as unverified
+        const vendor = await Vendor.create({
+            name,
+            contactPerson,
+            phoneNumber,
+            email,
+            password:hashedPassword,
+            address,
+            specialization,
+            website,
+            verified: false,
+        });
+
+        res.status(201).json({
+            _id: vendor._id,
+            name: vendor.name,
+            email: vendor.email,
+            token: generateToken(vendor._id, 'vendor'),
+        });
+    } catch (error) {
+        console.error('Vendor Registration Error:', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: error.message });
+        }
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}),
+
+loginVendor: asyncHandler(async (req, res) => {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+        return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    try {
+        const vendor = await Vendor.findOne({ email });
+
+        if (!vendor) {
+            return res.status(401).json({ message: 'Invalid email or password' });
+        }
+        const passwordMatch = await bcrypt.compare(password, vendor.password);
+
+        if (passwordMatch) {
+            res.json({
+                _id: vendor._id,
+                name: vendor.name,
+                email: vendor.email,
+                token: generateToken(vendor._id, 'vendor'),
             });
-
-            res.status(201).json(vendor);
-        } catch (error) {
-            console.error('Create Vendor Error:', error);
-            if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message });
-            }
-            res.status(500).json({ message: 'Internal server error' });
+        } else {
+            res.status(401).json({ message: 'Invalid email or password' });
         }
-    }),
+    } catch (error) {
+        console.error('Login Vendor Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}),
 
+    // Get all vendors (admin only)
     getVendors: asyncHandler(async (req, res) => {
         try {
             const vendors = await Vendor.find();
@@ -43,6 +89,7 @@ const vendorController = {
         }
     }),
 
+    // Get a vendor by ID (admin only)
     getVendorById: asyncHandler(async (req, res) => {
         const { id } = req.params;
 
@@ -62,10 +109,10 @@ const vendorController = {
         }
     }),
 
+    // Update a vendor by ID (admin only)
     updateVendor: asyncHandler(async (req, res) => {
-        const { id } = req.params;
-        const { name, contactPerson, phoneNumber, email, address, specialization, website } = req.body;
-        const user = req.user;
+        const id  = req.user.id;
+        const { name, contactPerson, phoneNumber, email, address, specialization, website, verified } = req.body;
 
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid vendor ID' });
@@ -78,14 +125,9 @@ const vendorController = {
                 return res.status(404).json({ message: 'Vendor not found' });
             }
 
-            // Check if the logged-in user is a vendor and is updating their own profile
-            if (user.role === 'vendor' && user._id.toString() !== id) {
-                return res.status(403).json({ message: 'Not authorized to update this vendor' });
-            }
-
             const updatedVendor = await Vendor.findByIdAndUpdate(
                 id,
-                { name, contactPerson, phoneNumber, email, address, specialization, website },
+                { name, contactPerson, phoneNumber, email, address, specialization, website, verified },
                 { new: true, runValidators: true }
             );
 
@@ -99,6 +141,7 @@ const vendorController = {
         }
     }),
 
+    // Delete a vendor by ID (admin only)
     deleteVendor: asyncHandler(async (req, res) => {
         const { id } = req.params;
 
@@ -119,6 +162,8 @@ const vendorController = {
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
+
+    // Verify a vendor (admin only)
     verifyVendor: asyncHandler(async (req, res) => {
         const { id } = req.params;
 
