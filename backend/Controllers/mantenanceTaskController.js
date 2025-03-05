@@ -5,6 +5,7 @@ const Store = require('../Models/storeModel');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Parts = require('../Models/partsModel');
+const Manager = require('../Models/managerModel');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const maintenanceTaskController = {
@@ -55,8 +56,7 @@ const maintenanceTaskController = {
             });
     
             // Update Vehicle maintenanceStores array only if store is not already present
-            await Vehicle.findByIdAndUpdate(vehicleId, { $addToSet: { maintenanceStores: storeId } }, { new: true });
-    
+            await Vehicle.findByIdAndUpdate(vehicleId, { $addToSet: { maintenanceStores: storeId } ,status:"scheduled"}, { new: true });
             // Placeholder for service record generation
             // You would create a new ServiceRecord document here
             // based on the maintenance task details.
@@ -216,38 +216,78 @@ const maintenanceTaskController = {
   }),
 
   // Change maintenance task status
-  changeMaintenanceTaskStatus: asyncHandler(async (req, res) => {
-      const { taskId } = req.params;
-      const { status } = req.body;
+  updateMaintenanceTaskStatusAndVehicle: asyncHandler(async (req, res) => {
+    const { taskId, status } = req.body; // 'status' is the new taskStatus
 
-      if (!mongoose.Types.ObjectId.isValid(taskId)) {
-          return res.status(400).json({ message: 'Invalid task ID' });
-      }
+    try {
+        const manager = await Manager.findById(req.user._id).populate('storeId');
 
-      if (!['scheduled', 'in progress', 'completed', 'canceled'].includes(status)) {
-          return res.status(400).json({ message: 'Invalid task status' });
-      }
+        // Find the Maintenance Task
+        const task = await MaintenanceTask.findById(taskId);
+        if (!task) {
+            return res.status(404).json({ message: 'Maintenance task not found' });
+        }
 
-      try {
-          const updatedTask = await MaintenanceTask.findByIdAndUpdate(
-              taskId,
-              { taskStatus: status },
-              { new: true }
-          )
-              .populate('partsReplaced.partId')
-              .populate('vendorId')
-              .populate('storeId');
+        if (task.storeId.toString() !== manager.storeId._id.toString()) {
+            return res.status(403).json({ message: 'Unauthorized to update this task' });
+        }
 
-          if (!updatedTask) {
-              return res.status(404).json({ message: 'Maintenance task not found' });
-          }
+        // Update the Maintenance Task status
+        task.taskStatus = status;
+        await task.save();
 
-          res.json(updatedTask);
-      } catch (error) {
-          console.error('Change Maintenance Task Status Error:', error);
-          res.status(500).json({ message: 'Internal server error' });
-      }
-  }),
+        // Find the associated Vehicle
+        const vehicle = await Vehicle.findById(task.vehicleId);
+        if (!vehicle) {
+            return res.status(404).json({ message: 'Vehicle not found' });
+        }
+
+        if (!vehicle.maintenanceStores.some(store => store.toString() === manager.storeId._id.toString())) {
+            return res.status(403).json({ message: 'Unauthorized to update this vehicle' });
+        }
+
+        // Update Vehicle status based on Task status
+        if (status === 'canceled') {
+            // Find previous task status
+            const previousTask = await MaintenanceTask.findOne({
+                vehicleId: task.vehicleId,
+                _id: { $ne: taskId },
+                taskStatus: { $ne: 'canceled' },
+            }).sort({ createdAt: -1 });
+
+            vehicle.status = previousTask ? previousTask.taskStatus : 'canceled';
+        } else {
+            vehicle.status = status;
+        }
+
+        await vehicle.save();
+
+        // Update task in vehicle's maintenanceTasks array
+        await Vehicle.updateOne(
+            { maintenanceTasks: taskId },
+            { $set: { 'maintenanceTasks.$': taskId } }
+        );
+
+        res.json({ message: 'Maintenance task and vehicle status updated successfully' });
+    } catch (error) {
+        console.error('Update Task and Vehicle Status Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}),
+getVehiclesByStatus: asyncHandler(async (req, res) => {
+    const { status } = req.query;
+    const manager = await Manager.findById(req.user._id).populate('storeId');
+    try {
+        const vehicles = await Vehicle.find({
+            status: status,
+            maintenanceStores: manager.storeId._id,
+        });
+        res.json(vehicles);
+    } catch (error) {
+        console.error('Get Vehicles by Status Error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+    }
+}),
   getTasksByStatus: asyncHandler(async (req, res) => {
     const { status } = req.query;
     const storeId = req.user.storeId;

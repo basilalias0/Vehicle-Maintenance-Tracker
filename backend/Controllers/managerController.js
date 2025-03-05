@@ -8,6 +8,7 @@ const Manager = require('../Models/managerModel');
 const mongoose = require('mongoose');
 const Store = require('../Models/storeModel');
 const Vendor = require('../Models/vendorModel');
+const Parts = require('../Models/partsModel');
 
 
 const managerController = {
@@ -33,9 +34,9 @@ const managerController = {
 
         try {
             // Check if manager already exists
-            const managerExists = await Manager.findOne({ email });
+            const managerExists = await Manager.findOne({$or:[{ email },{username}]});
             if (managerExists) {
-                res.status(409).json({ message: 'Manager with this email already exists' });
+                res.status(409).json({ message: 'Manager with this email or username already exists' });
                 return;
             }
 
@@ -129,6 +130,10 @@ const managerController = {
     addManagerToStore: asyncHandler(async (req, res) => {
         const { email } = req.body;
         const loggedInManager = await Manager.findById(req.user._id).populate('storeId');
+
+        if(!email){
+            return res.status(400).json({ message: 'Email is required for adding manager to store' });
+        }
 
         if (!loggedInManager) {
             return res.status(404).json({ message: 'Logged-in manager not found' });
@@ -324,57 +329,49 @@ const managerController = {
     }),
 
     // Update maintenance task status
-    updateMaintenanceTaskStatus: asyncHandler(async (req, res) => {
-        const { taskId, status } = req.body;
-
+    updateMaintenanceTaskStatusAndVehicle: asyncHandler(async (req, res) => {
+        const { taskId, status } = req.body; // 'status' is the new taskStatus
+    
         try {
+            const manager = await Manager.findById(req.user._id).populate('storeId');
+    
+            // Find the Maintenance Task
             const task = await MaintenanceTask.findById(taskId);
             if (!task) {
-                res.status(404).json({ message: 'Maintenance task not found' });
-                return;
+                return res.status(404).json({ message: 'Maintenance task not found' });
             }
-
-            // Check if task belongs to manager's store
-            const manager = await Manager.findById(req.user._id).populate('storeId');
+    
             if (task.storeId.toString() !== manager.storeId._id.toString()) {
-                res.status(403).json({ message: 'Unauthorized to update this task' });
-                return;
+                return res.status(403).json({ message: 'Unauthorized to update this task' });
             }
-
+    
+            // Update the Maintenance Task status
             task.taskStatus = status;
             await task.save();
-
-            res.json({ message: 'Maintenance task status updated successfully' });
-        } catch (error) {
-            console.error('Update Maintenance Task Status Error:', error);
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }),
-
-    // Update vehicle status
-    updateVehicleStatus: asyncHandler(async (req, res) => {
-        const { vehicleId, status } = req.body;
-
-        try {
-            const vehicle = await Vehicle.findById(vehicleId);
+    
+            // Find the associated Vehicle
+            const vehicle = await Vehicle.findById(task.vehicleId);
             if (!vehicle) {
-                res.status(404).json({ message: 'Vehicle not found' });
-                return;
+                return res.status(404).json({ message: 'Vehicle not found' });
             }
-
-            // Check if vehicle belongs to manager's store (check maintenanceStores array)
-            const manager = await Manager.findById(req.user._id).populate('storeId');
+    
             if (!vehicle.maintenanceStores.some(store => store.toString() === manager.storeId._id.toString())) {
-                res.status(403).json({ message: 'Unauthorized to update this vehicle' });
-                return;
+                return res.status(403).json({ message: 'Unauthorized to update this vehicle' });
             }
-
+    
+            // Update the Vehicle status to match the Task status
             vehicle.status = status;
             await vehicle.save();
-
-            res.json({ message: 'Vehicle status updated successfully' });
+    
+            // Update task in vehicle's maintenanceTasks array
+            await Vehicle.updateOne(
+                { maintenanceTasks: taskId },
+                { $set: { 'maintenanceTasks.$': taskId } }
+            );
+    
+            res.json({ message: 'Maintenance task and vehicle status updated successfully' });
         } catch (error) {
-            console.error('Update Vehicle Status Error:', error);
+            console.error('Update Task and Vehicle Status Error:', error);
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
@@ -413,7 +410,7 @@ const managerController = {
                 return;
             }
 
-            const part = await Part.create({ partNumber, description, price, vendorId, stockQuantity, image });
+            const part = await Parts.create({ partNumber, description, price, vendorId, stockQuantity, image });
             res.status(201).json(part);
         } catch (error) {
             console.error('Add Part to Inventory Error:', error);

@@ -1,24 +1,18 @@
 const express = require('express');
 const orderRouter = express.Router();
-const orderController = require('../Controllers/orderController');
-const { protect, authorize } = require('../Middlewares/authMiddleware');
-const bodyParser = require('body-parser');
+const orderController = require('../Controllers/orderController'); // Assuming your controller is in this path
+const { protect, authorize } = require('../Middlewares/authMiddleware'); // Assuming you have auth middleware
 
-// Create an order (manager only)
-orderRouter.post('/', protect, authorize('manager'), orderController.createOrder);
+// Create Payment Intent and Order
+orderRouter.post('/create-payment-intent', protect, authorize('manager'), orderController.createPaymentIntentForOrder);
 
-// Get orders by store (manager only)
+// Get Orders by Store
 orderRouter.get('/', protect, authorize('manager'), orderController.getOrdersByStore);
 
-// Update order status (admin or manager)
-orderRouter.put('/status', protect, authorize('admin', 'manager'), orderController.updateOrderStatus);
+// Stripe Webhook (Important: Needs raw body parsing)
+orderRouter.post('/webhook', express.raw({ type: 'application/json' }), orderController.stripeWebhook);
 
-// Create payment intent for an order (manager only)
-orderRouter.post('/payment-intent', protect, authorize('manager'), orderController.createPaymentIntentForOrder);
-
-// Stripe webhook (public, no authentication needed)
-orderRouter.post('/webhook', bodyParser.raw({ type: 'application/json' }), orderController.stripeWebhook);
-
-
+// Delete Order
+orderRouter.delete('/:orderId', protect, authorize('manager'), orderController.deleteOrder);
 
 module.exports = orderRouter;

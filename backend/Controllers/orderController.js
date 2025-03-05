@@ -2,11 +2,21 @@ const Order = require('../Models/orderModel');
 const Parts = require('../Models/partsModel');
 const Store = require('../Models/storeModel');
 const asyncHandler = require('express-async-handler');
+require('dotenv').config()
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
+// Constants for order and payment statuses
+const ORDER_STATUS_PENDING = 'pending';
+const ORDER_STATUS_PROCESSING = 'processing';
+const ORDER_STATUS_SHIPPED = 'shipped';
+const ORDER_STATUS_DELIVERED = 'delivered';
+const PAYMENT_STATUS_PENDING = 'pending';
+const PAYMENT_STATUS_PAID = 'paid';
+const PAYMENT_STATUS_FAILED = 'failed';
+
 const orderController = {
-    createOrder: asyncHandler(async (req, res) => {
-        const { vendorId, orderItems, paymentMethod, stripePaymentIntentId, transactionId } = req.body;
+    createPaymentIntentForOrder: asyncHandler(async (req, res) => {
+        const { vendorId, orderItems } = req.body;
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
@@ -16,34 +26,57 @@ const orderController = {
                 return res.status(404).json({ message: 'Store not found' });
             }
 
+            if (!orderItems || orderItems.length === 0) {
+                return res.status(400).json({ message: 'Order items cannot be empty' });
+            }
+
             let totalAmount = 0;
+            const processedOrderItems = [];
             for (const item of orderItems) {
                 const part = await Parts.findById(item.partId);
                 if (!part || part.vendorId.toString() !== vendorId) {
-                    return res.status(400).json({ message: 'Invalid part or vendor' });
+                    return res.status(400).json({ message: `Invalid part or vendor for part ID: ${item.partId}` });
+                }
+                if(item.quantity <= 0){
+                    return res.status(400).json({message: `Invalid quantity for part ID: ${item.partId}`})
                 }
                 totalAmount += item.quantity * part.price;
+                processedOrderItems.push({ // add the price to the array.
+                    partId: item.partId,
+                    quantity: item.quantity,
+                    price: part.price, // add the price from the parts model
+                })
             }
+            
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: totalAmount * 100,
+                currency: 'usd',
+                automatic_payment_methods: { enabled: true },
+                metadata: { managerId: managerId.toString(), storeId: storeId.toString() },
+            });
 
             const order = await Order.create({
                 storeId,
                 managerId,
                 vendorId,
-                orderItems,
+                orderItems:processedOrderItems,
                 totalAmount,
                 shippingAddress: store.address,
-                paymentMethod,
-                stripePaymentIntentId,
-                transactionId,
+                stripePaymentIntentId: paymentIntent.id,
+                paymentStatus: PAYMENT_STATUS_PENDING,
+                orderStatus: ORDER_STATUS_PENDING,
             });
 
-            res.status(201).json(order);
+            //Reduce the stock of the parts.
+            for (const item of orderItems) {
+                await Parts.findByIdAndUpdate(item.partId, { $inc: { stock: -item.quantity } });
+            }
+
+            res.send({ clientSecret: paymentIntent.client_secret, orderId: order._id });
         } catch (error) {
-            console.error('Create Order Error:', error);
-            if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message });
-            } else if (error.name === 'CastError') {
-                return res.status(400).json({ message: 'Invalid ID format' });
+            console.error('Create Payment Intent Error:', error);
+            if (error.raw && error.raw.message) {
+                return res.status(400).json({ message: `Stripe Error: ${error.raw.message}` });
             }
             res.status(500).json({ message: 'Internal server error' });
         }
@@ -64,60 +97,6 @@ const orderController = {
         }
     }),
 
-    updateOrderStatus: asyncHandler(async (req, res) => {
-        const { orderId, orderStatus, paymentStatus } = req.body;
-
-        try {
-            const order = await Order.findByIdAndUpdate(orderId, { orderStatus, paymentStatus }, { new: true });
-            if (!order) {
-                return res.status(404).json({ message: 'Order not found' });
-            }
-            res.json(order);
-        } catch (error) {
-            console.error('Update Order Status Error:', error);
-            if (error.name === 'ValidationError') {
-                return res.status(400).json({ message: error.message });
-            } else if (error.name === 'CastError') {
-                return res.status(400).json({ message: 'Invalid ID format' });
-            }
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }),
-
-    createPaymentIntentForOrder: asyncHandler(async (req, res) => {
-        const { orderId } = req.body;
-
-        try {
-            const order = await Order.findById(orderId);
-            if (!order) {
-                return res.status(404).json({ message: 'Order not found' });
-            }
-
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: order.totalAmount * 100,
-                currency: 'usd',
-                automatic_payment_methods: {
-                    enabled: true,
-                },
-                metadata: {
-                    orderId: orderId,
-                },
-            });
-
-            await Order.findByIdAndUpdate(orderId, { stripePaymentIntentId: paymentIntent.id });
-
-            res.send({ clientSecret: paymentIntent.client_secret });
-        } catch (error) {
-            console.error('Create Payment Intent Error:', error);
-            if (error.raw && error.raw.message) {
-                return res.status(400).json({ message: `Stripe Error: ${error.raw.message}` });
-            } else if (error.name === 'CastError') {
-                return res.status(400).json({ message: 'Invalid ID format' });
-            }
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }),
-
     stripeWebhook: asyncHandler(async (req, res) => {
         const sig = req.headers['stripe-signature'];
         let event;
@@ -131,17 +110,19 @@ const orderController = {
 
         try {
             switch (event.type) {
-                case 'payment_intent.created':
-                    const paymentIntentCreated = event.data.object;
-                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentCreated.id }, { paymentStatus: 'pending' });
-                    break;
                 case 'payment_intent.succeeded':
                     const paymentIntentSucceeded = event.data.object;
-                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentSucceeded.id }, { paymentStatus: 'paid' });
+                    await Order.findOneAndUpdate(
+                        { stripePaymentIntentId: paymentIntentSucceeded.id },
+                        { paymentStatus: PAYMENT_STATUS_PAID, orderStatus: ORDER_STATUS_PROCESSING }
+                    );
                     break;
                 case 'payment_intent.payment_failed':
                     const paymentIntentFailed = event.data.object;
-                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentFailed.id }, { paymentStatus: 'failed' });
+                    await Order.findOneAndUpdate(
+                        { stripePaymentIntentId: paymentIntentFailed.id },
+                        { paymentStatus: PAYMENT_STATUS_FAILED }
+                    );
                     break;
                 default:
                     console.log(`Unhandled event type ${event.type}`);
@@ -149,8 +130,25 @@ const orderController = {
 
             res.json({ received: true });
         } catch (error) {
-            console.error('Stripe Webhook Processing Error:', error);
+            console.error('Stripe Webhook Processing Error:', error, event);
             res.status(500).json({ message: 'Internal server error during webhook processing' });
+        }
+    }),
+
+    deleteOrder: asyncHandler(async (req, res) => {
+        const { orderId } = req.params;
+        const storeId = req.user.storeId;
+
+        try {
+            const order = await Order.findOneAndDelete({ _id: orderId, storeId: storeId });
+            if (!order) {
+                return res.status(404).json({ message: 'Order not found or unauthorized' });
+            }
+            console.log(`Order ${orderId} deleted from store ${storeId}`);
+            res.json({ message: 'Order deleted successfully' });
+        } catch (error) {
+            console.error('Delete Order Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
         }
     }),
 };

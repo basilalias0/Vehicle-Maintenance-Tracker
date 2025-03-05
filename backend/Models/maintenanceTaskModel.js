@@ -10,7 +10,7 @@ const maintenanceTaskSchema = new mongoose.Schema({
     serviceProvider: { type: String },
     vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }, // Vendor assigned to the task
     partsReplaced: [{
-        partId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parts' },
+        partId: { type: mongoose.Schema.Types.ObjectId, ref: 'Part' },
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }, // Vendor who provided the part
         quantity: { type: Number },
     }],

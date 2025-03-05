@@ -24,14 +24,15 @@ maintenanceTaskRouter.delete('/:id', protect, authorize('admin'), maintenanceTas
 // Get maintenance tasks by vehicle ID (owner)
 maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, authorize('owner'), maintenanceTaskController.getMaintenanceTasksByVehicleId);
 
-// Change maintenance task status (manager)
-maintenanceTaskRouter.put('/:taskId/status', protect, authorize('manager'), maintenanceTaskController.changeMaintenanceTaskStatus);
+
 
 maintenanceTaskRouter.post('/payment-intent', protect, authorize('owner'), maintenanceTaskController.createPaymentIntent);
 
 maintenanceTaskRouter.post('/webhook', express.raw({ type: 'application/json' }), maintenanceTaskController.stripeWebhook);
 
 maintenanceTaskRouter.get('/unpaid-payments', protect, authorize('owner', 'manager'), maintenanceTaskController.getUnpaidPayments);
+
+maintenanceTaskRouter.get('/vehicles/status', protect, authorize('manager'), maintenanceTaskController.getVehiclesByStatus);
 
 
 module.exports = maintenanceTaskRouter;

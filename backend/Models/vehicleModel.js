@@ -13,7 +13,7 @@ const vehicleSchema = new mongoose.Schema({
     insuranceDetails: { type: String },
     image: { type: String },
     group: { type: String },
-    status: {type: String, enum: ['active', 'inactive'], default: 'active'},
+    status: { type: String, enum: ['scheduled', 'in progress', 'completed', 'canceled'], default: 'scheduled' },
     storeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Store' },
     maintenanceStores: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Store' }] // Added maintenanceStores
 },{timestamps:true});
