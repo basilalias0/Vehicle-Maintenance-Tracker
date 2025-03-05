@@ -1,9 +1,10 @@
-require('dotenv').config()
+
 const express = require('express')
 const  router  = require('./Routes')
 const mongoose  = require('mongoose')
 const errorHandler = require('./Middlewares/errorHandler')
 const cookieParser = require('cookie-parser')
+require('dotenv').config()
 const app = express()
 
 
