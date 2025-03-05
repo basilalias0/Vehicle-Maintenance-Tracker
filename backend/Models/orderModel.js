@@ -13,7 +13,7 @@ const orderSchema = new mongoose.Schema({
         price: { type: Number, required: true },
     }],
     shippingAddress: { type: String, required: true }, // Store's address
-    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed', 'refunded'], default: 'pending' },
+    paymentStatus: { type: String, enum: ['pending', 'paid', 'failed',], default: 'pending' },
     paymentMethod: { type: String }, // e.g., "Stripe", "Cash", "Bank Transfer"
     stripePaymentIntentId: { type: String }, // If Stripe is used
     transactionId: {type: String},

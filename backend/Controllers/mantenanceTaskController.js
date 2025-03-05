@@ -5,6 +5,7 @@ const Store = require('../Models/storeModel');
 const asyncHandler = require('express-async-handler');
 const mongoose = require('mongoose');
 const Parts = require('../Models/partsModel');
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const maintenanceTaskController = {
     // Create a new maintenance task
@@ -33,6 +34,9 @@ const maintenanceTaskController = {
             const store = await Store.findById(storeId);
             if (!store) {
                 return res.status(404).json({ message: "Store not found." });
+            }
+            if (laborCost < 0) {
+                return res.status(400).json({ message: 'Labor cost must be a positive number' });
             }
     
             const maintenanceTask = await MaintenanceTask.create({
@@ -267,7 +271,124 @@ const maintenanceTaskController = {
         console.error('Get Tasks by Status and Store ID Error:', error);
         res.status(500).json({ message: 'Internal server error' });
     }
-})
+}),
+    
+     createPaymentIntent: asyncHandler(async (req, res) => {
+        const { taskId } = req.body;
+
+        try {
+            const task = await MaintenanceTask.findById(taskId);
+            if (!task) {
+                return res.status(404).json({ message: 'Task not found' });
+            }
+
+            if (task.paymentStatus !== 'pending') {
+                return res.status(400).json({ message: 'Payment already processed for this task' });
+            }
+
+            const totalCost = task.laborCost; // Assuming laborCost is the payment amount
+
+            if (totalCost <= 0) {
+                return res.status(400).json({ message: 'Invalid payment amount' });
+            }
+
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: totalCost * 100, // Amount in cents
+                currency: 'usd',
+                automatic_payment_methods: { enabled: true },
+                metadata: { taskId: taskId },
+            });
+
+            await MaintenanceTask.findByIdAndUpdate(taskId, { stripePaymentIntentId: paymentIntent.id });
+
+            res.send({ clientSecret: paymentIntent.client_secret });
+        } catch (error) {
+            console.error('Create Payment Intent Error:', error);
+            if (error.raw && error.raw.message) {
+                return res.status(400).json({ message: `Stripe Error: ${error.raw.message}` });
+            } else if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+
+    stripeWebhook: asyncHandler(async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+        let event;
+
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        } catch (err) {
+            console.error('Stripe Webhook Signature Error:', err);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+        }
+
+        try {
+            let taskId
+            switch (event.type) {
+                case 'payment_intent.succeeded':
+                    const paymentIntentSucceeded = event.data.object;
+                     taskId = paymentIntentSucceeded.metadata.taskId;
+
+                    await MaintenanceTask.findByIdAndUpdate(taskId, { paymentStatus: 'paid' });
+                    break;
+                case 'payment_intent.payment_failed':
+                    const paymentIntentFailed = event.data.object;
+                     taskId = paymentIntentFailed.metadata.taskId;
+
+                    await MaintenanceTask.findByIdAndUpdate(taskId, { paymentStatus: 'failed' });
+                    break;
+                case 'payment_intent.refunded':
+                    const paymentIntentRefunded = event.data.object;
+                     taskId = paymentIntentRefunded.metadata.taskId;
+
+                    await MaintenanceTask.findByIdAndUpdate(taskId, { paymentStatus: 'refunded' });
+                    break;
+
+                default:
+                    console.log(`Unhandled event type ${event.type}`);
+            }
+
+            res.json({ received: true });
+        } catch (error) {
+            console.error('Stripe Webhook Processing Error:', error);
+            res.status(500).json({ message: 'Internal server error during webhook processing' });
+        }
+    }),
+    getUnpaidPayments: asyncHandler(async (req, res) => {
+        const user = req.user;
+
+        try {
+            let query = { paymentStatus: 'pending' };
+
+            if (user.role === 'owner') {
+                query.vehicleId = { $in: await getVehicleIdsForOwner(user._id) }; // Get vehicleIds for the owner
+            } else if (user.role === 'manager') {
+                query.storeId = user.storeId;
+            } else {
+                return res.status(403).json({ message: 'Unauthorized' });
+            }
+
+            const unpaidTasks = await MaintenanceTask.find(query)
+                .populate('vehicleId')
+                .populate('vendorId')
+                .populate('partsReplaced.partId')
+                .populate('partsReplaced.vendorId');
+
+            res.json(unpaidTasks);
+        } catch (error) {
+            console.error('Get Unpaid Payments Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
 };
+
+// Helper function to get vehicleIds for an owner
+async function getVehicleIdsForOwner(ownerId) {
+    const Vehicle = require('../Models/vehicleModel'); // Assuming you have a Vehicle model
+    const vehicles = await Vehicle.find({ ownerId: ownerId }, '_id');
+    return vehicles.map(vehicle => vehicle._id);
+}
 
 module.exports = maintenanceTaskController;

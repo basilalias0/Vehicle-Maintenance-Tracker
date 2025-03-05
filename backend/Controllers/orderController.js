@@ -16,7 +16,6 @@ const orderController = {
                 return res.status(404).json({ message: 'Store not found' });
             }
 
-            // Calculate total amount
             let totalAmount = 0;
             for (const item of orderItems) {
                 const part = await Parts.findById(item.partId);
@@ -32,7 +31,7 @@ const orderController = {
                 vendorId,
                 orderItems,
                 totalAmount,
-                shippingAddress: store.address, // Use store's address
+                shippingAddress: store.address,
                 paymentMethod,
                 stripePaymentIntentId,
                 transactionId,
@@ -41,6 +40,11 @@ const orderController = {
             res.status(201).json(order);
         } catch (error) {
             console.error('Create Order Error:', error);
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({ message: error.message });
+            } else if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
@@ -53,6 +57,9 @@ const orderController = {
             res.json(orders);
         } catch (error) {
             console.error('Get Orders By Store Error:', error);
+            if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
@@ -68,6 +75,11 @@ const orderController = {
             res.json(order);
         } catch (error) {
             console.error('Update Order Status Error:', error);
+            if (error.name === 'ValidationError') {
+                return res.status(400).json({ message: error.message });
+            } else if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
@@ -82,8 +94,8 @@ const orderController = {
             }
 
             const paymentIntent = await stripe.paymentIntents.create({
-                amount: order.totalAmount * 100, // Amount in cents
-                currency: 'usd', // Or your currency
+                amount: order.totalAmount * 100,
+                currency: 'usd',
                 automatic_payment_methods: {
                     enabled: true,
                 },
@@ -97,7 +109,48 @@ const orderController = {
             res.send({ clientSecret: paymentIntent.client_secret });
         } catch (error) {
             console.error('Create Payment Intent Error:', error);
+            if (error.raw && error.raw.message) {
+                return res.status(400).json({ message: `Stripe Error: ${error.raw.message}` });
+            } else if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
             res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+
+    stripeWebhook: asyncHandler(async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+        let event;
+
+        try {
+            event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+        } catch (err) {
+            console.error('Stripe Webhook Signature Error:', err);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+        }
+
+        try {
+            switch (event.type) {
+                case 'payment_intent.created':
+                    const paymentIntentCreated = event.data.object;
+                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentCreated.id }, { paymentStatus: 'pending' });
+                    break;
+                case 'payment_intent.succeeded':
+                    const paymentIntentSucceeded = event.data.object;
+                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentSucceeded.id }, { paymentStatus: 'paid' });
+                    break;
+                case 'payment_intent.payment_failed':
+                    const paymentIntentFailed = event.data.object;
+                    await Order.findOneAndUpdate({ stripePaymentIntentId: paymentIntentFailed.id }, { paymentStatus: 'failed' });
+                    break;
+                default:
+                    console.log(`Unhandled event type ${event.type}`);
+            }
+
+            res.json({ received: true });
+        } catch (error) {
+            console.error('Stripe Webhook Processing Error:', error);
+            res.status(500).json({ message: 'Internal server error during webhook processing' });
         }
     }),
 };

@@ -8,6 +8,7 @@ const maintenanceTaskRouter = require('./maintenanceTaskRoutes')
 const complaintRouter = require('./complaintRoutes')
 const vendorRouter = require('./vendorRoutes')
 const partRouter = require('./PartsRoutes')
+const orderRouter = require('./orderRouter')
 const router = express()
 
 
@@ -20,5 +21,6 @@ router.use('/maintenance-task',maintenanceTaskRouter)
 router.use('/complaint',complaintRouter)
 router.use('/vendor',vendorRouter)
 router.use('/parts',partRouter)
+router.use('/order',orderRouter)
 
 module.exports = router

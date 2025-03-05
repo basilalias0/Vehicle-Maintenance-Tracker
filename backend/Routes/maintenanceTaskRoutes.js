@@ -27,6 +27,11 @@ maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, authorize('owner'), ma
 // Change maintenance task status (manager)
 maintenanceTaskRouter.put('/:taskId/status', protect, authorize('manager'), maintenanceTaskController.changeMaintenanceTaskStatus);
 
+maintenanceTaskRouter.post('/payment-intent', protect, authorize('owner'), maintenanceTaskController.createPaymentIntent);
+
+maintenanceTaskRouter.post('/webhook', express.raw({ type: 'application/json' }), maintenanceTaskController.stripeWebhook);
+
+maintenanceTaskRouter.get('/unpaid-payments', protect, authorize('owner', 'manager'), maintenanceTaskController.getUnpaidPayments);
 
 
 module.exports = maintenanceTaskRouter;

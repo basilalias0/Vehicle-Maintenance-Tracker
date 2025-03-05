@@ -1,6 +1,7 @@
 const express = require('express');
 const partController = require('../Controllers/partController');
 const { protect, authorize } = require('../Middlewares/authMiddleware');
+const upload = require('../Middlewares/imageUpload');
 const partRouter = express.Router();
 
 // Create a new part (vendor only)
