@@ -14,6 +14,7 @@ const maintenanceTaskSchema = new mongoose.Schema({
         vendorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Vendor' }, // Vendor who provided the part
         quantity: { type: Number },
     }],
+    paymentEscalated: { type: Boolean, default: false },
     laborCost: { type: Number },
     notes: { type: String },
     reminderSent: { type: Boolean, default: false },

@@ -34,5 +34,7 @@ maintenanceTaskRouter.get('/unpaid-payments', protect, authorize('owner', 'manag
 
 maintenanceTaskRouter.get('/vehicles/status', protect, authorize('manager'), maintenanceTaskController.getVehiclesByStatus);
 
+maintenanceTaskRouter.put('/:id/escalate-payment', protect, authorize('manager'), maintenanceTaskController.escalatePayment);
+
 
 module.exports = maintenanceTaskRouter;
