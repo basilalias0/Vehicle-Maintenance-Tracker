@@ -175,6 +175,25 @@ const managerController = {
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
+    getMyStore:asyncHandler(async(req,res)=>{
+        const loggedInManager = await Manager.findById(req.user._id).populate('storeId');
+        if (!loggedInManager) {
+            return res.status(404).json({ message: 'Logged-in manager not found' });
+            }
+        if (!loggedInManager.storeId) {
+            return res.status(400).json({ message: 'Logged-in manager is not associated with a store' });
+            }
+        try {
+            const store = await Store.findById(loggedInManager.storeId._id).populate('managerId').populate('products').populate('orders').populate('reviews');
+            if (!store) {
+                return res.status(404).json({ message: 'Store not found' });
+            }
+            res.status(200).json(store);
+            } catch (error) {
+                console.error('Get My Store Error:', error);
+                res.status(500).json({ message: 'Internal server error' });
+            }
+    }),
     updateManagerProfileImage: asyncHandler(async (req, res) => {
         try {
             const manager = await Manager.findById(req.user._id);

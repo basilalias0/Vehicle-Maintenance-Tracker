@@ -13,7 +13,8 @@ managerRouter.get('/profile', protect, authorize('manager'), managerController.g
 managerRouter.put('/profile', protect, authorize('manager'), managerController.updateManagerProfile);
 managerRouter.put('/profile/picture', protect, authorize('manager'), upload('managers').single('profileImage'), managerController.updateManagerProfileImage);
 managerRouter.post('/add-to-store', protect, authorize('manager'), managerController.addManagerToStore);
-managerRouter.get('/my-store', protect, authorize('manager'), managerController.getManagersInMyStore);
+managerRouter.post('/my-store', protect, authorize('manager'), managerController.getMyStore);
+managerRouter.get('/my-store/manager', protect, authorize('manager'), managerController.getManagersInMyStore);
 managerRouter.get('/my-store/vehicles', protect, authorize('manager'), managerController.getManagerStoreVehicles);
 managerRouter.get('/my-store/tasks', protect, authorize('manager'), managerController.getManagerStoreMaintenanceTasks);
 managerRouter.put('/tasks/status', protect, authorize('manager'), managerController.updateMaintenanceTaskStatusAndVehicle);
