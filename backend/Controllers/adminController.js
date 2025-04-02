@@ -191,7 +191,7 @@ const adminController = {
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
-    
+
     deleteAdmin: asyncHandler(async (req, res) => {
         const { adminId } = req.params;
 
@@ -221,14 +221,14 @@ const adminController = {
         if (email) filters.email = { $regex: email, $options: 'i' };
 
         try {
-            let admins = [], owners = [], stores = [], managers = [];
+            let admins = [], owners = [], vendor = [], managers = [];
 
             if (!role || role === 'admin') admins = await Admin.find(filters).select('-password');
             if (!role || role === 'owner') owners = await Owner.find(filters).select('-password');
-            if (!role || role === 'store') stores = await Store.find(filters);
+            if (!role || role === 'vendor') vendor = await Vendor.find(filters);
             if (!role || role === 'manager') managers = await Manager.find(filters).select('-password');
 
-            const allUsers = [...admins, ...owners, ...stores, ...managers];
+            const allUsers = [...admins, ...owners, ...vendor, ...managers];
             res.json(allUsers);
         } catch (error) {
             console.error('Get All Users Error:', error);
