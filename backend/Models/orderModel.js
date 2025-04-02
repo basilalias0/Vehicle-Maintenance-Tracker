@@ -7,11 +7,11 @@ const orderSchema = new mongoose.Schema({
     orderDate: { type: Date, default: Date.now },
     orderStatus: { type: String, enum: ['pending', 'processing', 'shipped', 'delivered', 'canceled', 'completed'], default: 'pending' },
     totalAmount: { type: Number, required: true },
-    orderItems: [{
+    orderItems: {
         partId: { type: mongoose.Schema.Types.ObjectId, ref: 'Parts', required: true },
         quantity: { type: Number, required: true },
         price: { type: Number, required: true },
-    }],
+    },
     shippingAddress: { type: String, required: true }, // Store's address
     paymentStatus: { type: String, enum: ['pending', 'paid', 'failed',], default: 'pending' },
     paymentMethod: { type: String }, // e.g., "Stripe", "Cash", "Bank Transfer"

@@ -16,7 +16,7 @@ const PAYMENT_STATUS_FAILED = 'failed';
 
 const orderController = {
     createPaymentIntentForOrder: asyncHandler(async (req, res) => {
-        const { vendorId, orderItems } = req.body;
+        const { vendorId, partId, quantity } = req.body; // Adjusted for single item
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
@@ -26,28 +26,17 @@ const orderController = {
                 return res.status(404).json({ message: 'Store not found' });
             }
 
-            if (!orderItems || orderItems.length === 0) {
-                return res.status(400).json({ message: 'Order items cannot be empty' });
+            const part = await Parts.findById(partId);
+            if (!part || part.vendorId.toString() !== vendorId) {
+                return res.status(400).json({ message: `Invalid part or vendor for part ID: ${partId}` });
             }
 
-            let totalAmount = 0;
-            const processedOrderItems = [];
-            for (const item of orderItems) {
-                const part = await Parts.findById(item.partId);
-                if (!part || part.vendorId.toString() !== vendorId) {
-                    return res.status(400).json({ message: `Invalid part or vendor for part ID: ${item.partId}` });
-                }
-                if(item.quantity <= 0){
-                    return res.status(400).json({message: `Invalid quantity for part ID: ${item.partId}`})
-                }
-                totalAmount += item.quantity * part.price;
-                processedOrderItems.push({ // add the price to the array.
-                    partId: item.partId,
-                    quantity: item.quantity,
-                    price: part.price, // add the price from the parts model
-                })
+            if (quantity <= 0) {
+                return res.status(400).json({ message: `Invalid quantity for part ID: ${partId}` });
             }
-            
+
+            const totalAmount = quantity * part.price;
+
             const paymentIntent = await stripe.paymentIntents.create({
                 amount: totalAmount * 100,
                 currency: 'usd',
@@ -59,7 +48,7 @@ const orderController = {
                 storeId,
                 managerId,
                 vendorId,
-                orderItems:processedOrderItems,
+                orderItems: [{ partId, quantity, price: part.price }], // Single item
                 totalAmount,
                 shippingAddress: store.address,
                 stripePaymentIntentId: paymentIntent.id,
@@ -67,10 +56,7 @@ const orderController = {
                 orderStatus: ORDER_STATUS_PENDING,
             });
 
-            //Reduce the stock of the parts.
-            for (const item of orderItems) {
-                await Parts.findByIdAndUpdate(item.partId, { $inc: { stock: -item.quantity } });
-            }
+            await Parts.findByIdAndUpdate(partId, { $inc: { stock: -quantity } });
 
             res.send({ clientSecret: paymentIntent.client_secret, orderId: order._id });
         } catch (error) {
