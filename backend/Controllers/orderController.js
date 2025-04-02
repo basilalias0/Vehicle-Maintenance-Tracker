@@ -52,13 +52,17 @@ const orderController = {
                 storeId,
                 managerId,
                 vendorId,
-                orderItems: [{ partId, quantity, price: part.price }], // Single item
+                orderItems: { 
+                    partId: partId,
+                    quantity: quantity,
+                    price: part.price,
+                },
                 totalAmount,
                 shippingAddress: store.address,
                 stripePaymentIntentId: paymentIntent.id,
                 paymentStatus: PAYMENT_STATUS_PENDING,
                 orderStatus: ORDER_STATUS_PENDING,
-            });
+            })
 
             await Parts.findByIdAndUpdate(partId, { $inc: { stock: -quantity } });
 
