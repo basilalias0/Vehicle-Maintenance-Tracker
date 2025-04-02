@@ -5,10 +5,6 @@ const maintenanceTaskController = require('../Controllers/mantenanceTaskControll
 const maintenanceTaskRouter = express.Router();
 
 
-maintenanceTaskRouter.post('/webhook', express.raw({ type: 'application/json' }), maintenanceTaskController.stripeWebhook);
-
-app.use(express.json())
-
 // Create a new maintenance task (manager)
 maintenanceTaskRouter.post('/:vehicleId', protect, authorize('manager'), maintenanceTaskController.createMaintenanceTask);
 
@@ -29,12 +25,6 @@ maintenanceTaskRouter.delete('/:id', protect, authorize('admin'), maintenanceTas
 
 // Get maintenance tasks by vehicle ID (owner)
 maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, authorize('owner'), maintenanceTaskController.getMaintenanceTasksByVehicleId);
-
-
-
-maintenanceTaskRouter.post('/payment-intent', protect, authorize('owner'), maintenanceTaskController.createPaymentIntent);
-
-
 
 maintenanceTaskRouter.get('/unpaid-payments', protect, authorize('owner', 'manager'), maintenanceTaskController.getUnpaidPayments);
 

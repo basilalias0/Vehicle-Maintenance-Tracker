@@ -114,9 +114,12 @@ const maintenanceTaskController = {
 
     updateMaintenanceTaskById: asyncHandler(async (req, res) => {
         const { id } = req.params;
+        console.log(id);
+        
         const { vendorId, partsReplaced, ...updateData } = req.body; // Extract vendorId and partsReplaced
         const manager = req.user;
         const storeId = manager.storeId;
+        
     
         if (!mongoose.Types.ObjectId.isValid(id)) {
             return res.status(400).json({ message: 'Invalid maintenance task ID' });
@@ -124,6 +127,8 @@ const maintenanceTaskController = {
     
         try {
             const task = await MaintenanceTask.findById(id);
+
+            
     
             if (!task || task.storeId.toString() !== storeId.toString()) {
                 return res.status(403).json({ message: "Not authorized to update this task" });
@@ -379,6 +384,7 @@ getVehiclesByStatus: asyncHandler(async (req, res) => {
             }
 
             const vehicle = await Vehicle.findById(task.vehicleId);
+
             if(!vehicle || vehicle.ownerId.toString() !== req.user._id.toString()){
                 return res.status(403).json({message: "Unauthorized. You are not the owner of this vehicle."})
             }

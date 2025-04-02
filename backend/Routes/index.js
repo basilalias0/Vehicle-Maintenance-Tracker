@@ -9,10 +9,11 @@ const complaintRouter = require('./complaintRoutes')
 const vendorRouter = require('./vendorRoutes')
 const partRouter = require('./PartsRoutes')
 const orderRouter = require('./orderRouter')
+const paymentRouter = require('./paymentRouter')
 const router = express()
 
-router.use('/maintenance-task',maintenanceTaskRouter)
-router.use('/order',orderRouter)
+
+router.use("/payment",paymentRouter)
 
 router.use(express.json())
 
@@ -24,5 +25,7 @@ router.use('/vehicle',vechicleRouter)
 router.use('/complaint',complaintRouter)
 router.use('/vendor',vendorRouter)
 router.use('/parts',partRouter)
+router.use('/maintenance-task',maintenanceTaskRouter)
+router.use('/order',orderRouter)
 
 module.exports = router

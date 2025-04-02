@@ -5,9 +5,9 @@ const orderController = require('../Controllers/orderController'); // Assuming y
 const { protect, authorize } = require('../Middlewares/authMiddleware'); // Assuming you have auth middleware
 
 
-orderRouter.post('/webhook', express.raw({ type: 'application/json' }), orderController.stripeWebhook);
 
-app.use(express.json())
+
+
 
 // Create Payment Intent and Order
 orderRouter.post('/create-payment-intent', protect, authorize('manager'), orderController.createPaymentIntentForOrder);
