@@ -101,6 +101,8 @@ const orderController = {
 
     stripeWebhook: asyncHandler(async (req, res) => {
         const sig = req.headers['stripe-signature'];
+        console.log(sig);
+        
         let event;
 
         try {
@@ -126,6 +128,13 @@ const orderController = {
                         { paymentStatus: PAYMENT_STATUS_FAILED }
                     );
                     break;
+                case 'payment_intent.canceled':
+                    const paymentIntentCanceled = event.data.object;
+                    await Order.findOneAndUpdate(
+                        { stripePaymentIntentId: paymentIntentCanceled.id },
+                        { orderStatus: ORDER_STATUS_CANCELED }
+                    );
+                        break;
                 default:
                     console.log(`Unhandled event type ${event.type}`);
             }
