@@ -7,6 +7,8 @@ const { protect } = require('../Middlewares/authMiddleware');
 // Public Routes (No Authentication Needed)
 ownerRouter.post('/register', ownerController.registerOwner); // Updated controller function name
 ownerRouter.post('/login', ownerController.loginOwner); // Updated controller function name
+ownerRouter.post('/reset-pin', ownerController.resetPassword); // Updated controller function name
+ownerRouter.post('/forgot-password', ownerController.forgotPassword); // Updated controller function name
 
 // Protected Routes (Authentication Required)
 ownerRouter.get('/profile', protect, ownerController.getOwnerProfile); // Updated controller function name

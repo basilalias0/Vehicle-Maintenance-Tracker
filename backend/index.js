@@ -20,7 +20,6 @@ const connectDB = async ()=>{
 connectDB()
 
 app.use(cookieParser())
-app.use(express.json())
 app.use("/api/v1",router)
 app.use(errorHandler)
 

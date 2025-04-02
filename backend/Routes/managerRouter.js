@@ -7,6 +7,8 @@ const upload = require('../Middlewares/imageUpload');
 // Public Routes
 managerRouter.post('/register', managerController.registerManager);
 managerRouter.post('/login', managerController.loginManager);
+managerRouter.post('/forgot-password', managerController.forgotPassword);
+managerRouter.post('/reset-pin', managerController.resetPassword);
 
 // Protected Routes (Manager Role)
 managerRouter.get('/profile', protect, authorize('manager'), managerController.getManagerProfile);
@@ -20,7 +22,7 @@ managerRouter.get('/my-store/tasks', protect, authorize('manager'), managerContr
 managerRouter.put('/tasks/status', protect, authorize('manager'), managerController.updateMaintenanceTaskStatusAndVehicle);
 
 // Protected Routes (Admin Role)
-managerRouter.get('/', protect, authorize('admin'), managerController.getManagers);
+managerRouter.get('/', protect, authorize('admin'), managerController.getAllManagers);
 managerRouter.get('/:id', protect, authorize('admin'), managerController.getManagerById);
 
 

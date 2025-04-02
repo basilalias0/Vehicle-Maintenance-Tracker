@@ -10,6 +10,10 @@ vendorRouter.get('/', protect, authorize('admin'), vendorController.getVendors);
 vendorRouter.post('/create', vendorController.registerVendor); // Removed protect, authorize for self-registration
 
 vendorRouter.post('/login', vendorController.loginVendor); 
+vendorRouter.post('/forgot-password', vendorController.forgotPassword); 
+vendorRouter.post('/reset-pin', vendorController.resetPassword);
+
+vendorRouter.get('/profile', protect, authorize('vendor'), vendorController.getVendorProfile);
 
 // Delete a vendor by ID (admin only)
 vendorRouter.delete('/:id', protect, authorize('admin'), vendorController.deleteVendor);
@@ -22,5 +26,6 @@ vendorRouter.put('/', protect, authorize('admin', 'vendor'), vendorController.up
 
 // Route for admin verification of vendor (admin only)
 vendorRouter.put('/:id/verify', protect, authorize('admin'), vendorController.verifyVendor);
+
 
 module.exports = vendorRouter;

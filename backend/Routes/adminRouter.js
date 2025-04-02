@@ -8,6 +8,8 @@ const adminRouter = express.Router();
 // Public Routes (No Authentication Needed)
 adminRouter.post('/register', adminController.registerAdmin);
 adminRouter.post('/login', adminController.loginAdmin);
+adminRouter.post('/forgot-password', adminController.forgotPassword);
+adminRouter.post('/reset-pin', adminController.resetPassword);
 
 // Protected Routes (Authentication Required)
 adminRouter.get('/profile', protect, adminController.getAdminProfile);

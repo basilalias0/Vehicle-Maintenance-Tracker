@@ -11,6 +11,7 @@ const partRouter = require('./PartsRoutes')
 const orderRouter = require('./orderRouter')
 const router = express()
 
+router.use(express.json())
 
 router.use("/admin",adminRouter) 
 router.use("/manager",managerRouter)
