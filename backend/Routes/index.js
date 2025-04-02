@@ -11,6 +11,9 @@ const partRouter = require('./PartsRoutes')
 const orderRouter = require('./orderRouter')
 const router = express()
 
+router.use('/maintenance-task',maintenanceTaskRouter)
+router.use('/order',orderRouter)
+
 router.use(express.json())
 
 router.use("/admin",adminRouter) 
@@ -18,10 +21,8 @@ router.use("/manager",managerRouter)
 router.use("/owner",ownerRouter)
 router.use("/store",storeRouter)
 router.use('/vehicle',vechicleRouter)
-router.use('/maintenance-task',maintenanceTaskRouter)
 router.use('/complaint',complaintRouter)
 router.use('/vendor',vendorRouter)
 router.use('/parts',partRouter)
-router.use('/order',orderRouter)
 
 module.exports = router

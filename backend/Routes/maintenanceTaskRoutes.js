@@ -1,7 +1,13 @@
 const express = require('express');
+const app = express()
 const { protect, authorize } = require('../Middlewares/authMiddleware');
 const maintenanceTaskController = require('../Controllers/mantenanceTaskController');
 const maintenanceTaskRouter = express.Router();
+
+
+maintenanceTaskRouter.post('/webhook', express.raw({ type: 'application/json' }), maintenanceTaskController.stripeWebhook);
+
+app.use(express.json())
 
 // Create a new maintenance task (manager)
 maintenanceTaskRouter.post('/:vehicleId', protect, authorize('manager'), maintenanceTaskController.createMaintenanceTask);
@@ -28,7 +34,7 @@ maintenanceTaskRouter.get('/vehicle/:vehicleId', protect, authorize('owner'), ma
 
 maintenanceTaskRouter.post('/payment-intent', protect, authorize('owner'), maintenanceTaskController.createPaymentIntent);
 
-maintenanceTaskRouter.post('/webhook', express.raw({ type: 'application/json' }), maintenanceTaskController.stripeWebhook);
+
 
 maintenanceTaskRouter.get('/unpaid-payments', protect, authorize('owner', 'manager'), maintenanceTaskController.getUnpaidPayments);
 
