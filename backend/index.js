@@ -5,6 +5,7 @@ const errorHandler = require('./Middlewares/errorHandler')
 const cookieParser = require('cookie-parser')
 require('dotenv').config()
 const app = express()
+const cors = require('cors')
 
 
 
