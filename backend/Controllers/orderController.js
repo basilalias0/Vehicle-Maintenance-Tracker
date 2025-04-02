@@ -20,6 +20,10 @@ const orderController = {
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
+        if(!vendorId || !partId || !quantity) {
+            return res.status(400).json({ message: 'Missing required fields' });
+            }
+
         try {
             const store = await Store.findById(storeId);
             if (!store) {
