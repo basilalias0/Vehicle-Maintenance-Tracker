@@ -20,7 +20,7 @@ const orderController = {
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
-        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId }); // Log input
+        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId });
 
         if (!vendorId || !partId || !quantity) {
             console.error('Missing required fields');
@@ -54,7 +54,7 @@ const orderController = {
                 metadata: { managerId: managerId.toString(), storeId: storeId.toString() },
             });
 
-            console.log('Payment intent created:', paymentIntent); // Log payment intent
+            console.log('Payment intent created:', paymentIntent);
 
             const order = await Order.create({
                 storeId,
@@ -72,9 +72,11 @@ const orderController = {
                 orderStatus: ORDER_STATUS_PENDING,
             });
 
-            console.log('Order created:', order); // Log order
+            console.log('Order created:', order);
 
             res.send({ clientSecret: paymentIntent.client_secret, orderId: order._id });
+            console.log("Client secret sent:", paymentIntent.client_secret);
+
         } catch (error) {
             console.error('Create Payment Intent Error:', error);
             if (error.raw && error.raw.message) {
@@ -84,24 +86,9 @@ const orderController = {
         }
     }),
 
-    getOrdersByStore: asyncHandler(async (req, res) => {
-        const storeId = req.user.storeId;
-
-        try {
-            const orders = await Order.find({ storeId }).populate('vendorId').populate('orderItems.partId');
-            res.json(orders);
-        } catch (error) {
-            console.error('Get Orders By Store Error:', error);
-            if (error.name === 'CastError') {
-                return res.status(400).json({ message: 'Invalid ID format' });
-            }
-            res.status(500).json({ message: 'Internal server error' });
-        }
-    }),
-
     stripeWebhook: asyncHandler(async (req, res) => {
         const sig = req.headers['stripe-signature'];
-        console.log(sig);
+        console.log("sig", sig);
         
         let event;
 
@@ -134,7 +121,7 @@ const orderController = {
                         { stripePaymentIntentId: paymentIntentCanceled.id },
                         { orderStatus: ORDER_STATUS_CANCELED }
                     );
-                        break;
+                    break;
                 default:
                     console.log(`Unhandled event type ${event.type}`);
             }
@@ -143,6 +130,21 @@ const orderController = {
         } catch (error) {
             console.error('Stripe Webhook Processing Error:', error, event);
             res.status(500).json({ message: 'Internal server error during webhook processing' });
+        }
+    }),
+
+    getOrdersByStore: asyncHandler(async (req, res) => {
+        const storeId = req.user.storeId;
+
+        try {
+            const orders = await Order.find({ storeId }).populate('vendorId').populate('orderItems.partId');
+            res.json(orders);
+        } catch (error) {
+            console.error('Get Orders By Store Error:', error);
+            if (error.name === 'CastError') {
+                return res.status(400).json({ message: 'Invalid ID format' });
+            }
+            res.status(500).json({ message: 'Internal server error' });
         }
     }),
 
