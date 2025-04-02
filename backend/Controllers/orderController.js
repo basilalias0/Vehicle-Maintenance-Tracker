@@ -16,26 +16,32 @@ const PAYMENT_STATUS_FAILED = 'failed';
 
 const orderController = {
     createPaymentIntentForOrder: asyncHandler(async (req, res) => {
-        const { vendorId, partId, quantity } = req.body; // Adjusted for single item
+        const { vendorId, partId, quantity } = req.body;
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
-        if(!vendorId || !partId || !quantity) {
+        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId }); // Log input
+
+        if (!vendorId || !partId || !quantity) {
+            console.error('Missing required fields');
             return res.status(400).json({ message: 'Missing required fields' });
-            }
+        }
 
         try {
             const store = await Store.findById(storeId);
             if (!store) {
+                console.error('Store not found');
                 return res.status(404).json({ message: 'Store not found' });
             }
 
             const part = await Parts.findById(partId);
             if (!part || part.vendorId.toString() !== vendorId) {
+                console.error('Invalid part or vendor for part ID:', partId);
                 return res.status(400).json({ message: `Invalid part or vendor for part ID: ${partId}` });
             }
 
             if (quantity <= 0) {
+                console.error('Invalid quantity for part ID:', partId);
                 return res.status(400).json({ message: `Invalid quantity for part ID: ${partId}` });
             }
 
@@ -48,11 +54,13 @@ const orderController = {
                 metadata: { managerId: managerId.toString(), storeId: storeId.toString() },
             });
 
+            console.log('Payment intent created:', paymentIntent); // Log payment intent
+
             const order = await Order.create({
                 storeId,
                 managerId,
                 vendorId,
-                orderItems: { 
+                orderItems: {
                     partId: partId,
                     quantity: quantity,
                     price: part.price,
@@ -62,9 +70,9 @@ const orderController = {
                 stripePaymentIntentId: paymentIntent.id,
                 paymentStatus: PAYMENT_STATUS_PENDING,
                 orderStatus: ORDER_STATUS_PENDING,
-            })
+            });
 
-            await Parts.findByIdAndUpdate(partId, { $inc: { stock: -quantity } });
+            console.log('Order created:', order); // Log order
 
             res.send({ clientSecret: paymentIntent.client_secret, orderId: order._id });
         } catch (error) {
