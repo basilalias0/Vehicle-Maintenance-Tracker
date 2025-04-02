@@ -20,8 +20,6 @@ const orderController = {
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
-        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId, stripeToken });
-
         if (!vendorId || !partId || !quantity || !stripeToken) { // Add stripeToken check
             console.error('Missing required fields');
             return res.status(400).json({ message: 'Missing required fields' });
@@ -93,6 +91,8 @@ const orderController = {
 
     stripeWebhook: asyncHandler(async (req, res) => {
         const sig = req.headers['stripe-signature'];
+        console.log("sig",sig);
+        
 
         let event;
 
