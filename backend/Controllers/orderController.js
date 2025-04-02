@@ -16,13 +16,13 @@ const PAYMENT_STATUS_FAILED = 'failed';
 
 const orderController = {
     createPaymentIntentForOrder: asyncHandler(async (req, res) => {
-        const { vendorId, partId, quantity } = req.body;
+        const { vendorId, partId, quantity, stripeToken } = req.body; // Add stripeToken
         const managerId = req.user._id;
         const storeId = req.user.storeId;
 
-        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId });
+        console.log('createPaymentIntentForOrder called with:', { vendorId, partId, quantity, managerId, storeId, stripeToken });
 
-        if (!vendorId || !partId || !quantity) {
+        if (!vendorId || !partId || !quantity || !stripeToken) { // Add stripeToken check
             console.error('Missing required fields');
             return res.status(400).json({ message: 'Missing required fields' });
         }
@@ -47,38 +47,43 @@ const orderController = {
 
             const totalAmount = quantity * part.price;
 
-            const paymentIntent = await stripe.paymentIntents.create({
-                amount: totalAmount * 100,
+            // Create a Stripe charge using the token
+            const charge = await stripe.charges.create({
+                amount: totalAmount * 100, // Amount in cents
                 currency: 'usd',
-                automatic_payment_methods: { enabled: true },
+                description: `Order for part ${part.partNumber}`,
+                source: stripeToken, // Token from Stripe.js
                 metadata: { managerId: managerId.toString(), storeId: storeId.toString() },
             });
 
-            console.log('Payment intent created:', paymentIntent);
+            console.log('Stripe charge created:', charge);
 
-            const order = await Order.create({
-                storeId,
-                managerId,
-                vendorId,
-                orderItems: {
-                    partId: partId,
-                    quantity: quantity,
-                    price: part.price,
-                },
-                totalAmount,
-                shippingAddress: store.address,
-                stripePaymentIntentId: paymentIntent.id,
-                paymentStatus: PAYMENT_STATUS_PENDING,
-                orderStatus: ORDER_STATUS_PENDING,
-            });
+            if (charge.status === 'succeeded') {
+                const order = await Order.create({
+                    storeId,
+                    managerId,
+                    vendorId,
+                    orderItems: {
+                        partId: partId,
+                        quantity: quantity,
+                        price: part.price,
+                    },
+                    totalAmount,
+                    shippingAddress: store.address,
+                    stripePaymentIntentId: charge.id, // Use charge ID
+                    paymentStatus: PAYMENT_STATUS_PAID, // Mark as paid
+                    orderStatus: ORDER_STATUS_PROCESSING, // Start processing
+                });
 
-            console.log('Order created:', order);
+                console.log('Order created:', order);
 
-            res.send({ clientSecret: paymentIntent.client_secret, orderId: order._id });
-            console.log("Client secret sent:", paymentIntent.client_secret);
+                res.status(201).json({ message: 'Order created and payment successful', orderId: order._id }); // Send order ID
+            } else {
+                res.status(400).json({ message: 'Payment failed' });
+            }
 
         } catch (error) {
-            console.error('Create Payment Intent Error:', error);
+            console.error('Create Order/Payment Error:', error);
             if (error.raw && error.raw.message) {
                 return res.status(400).json({ message: `Stripe Error: ${error.raw.message}` });
             }
@@ -87,9 +92,10 @@ const orderController = {
     }),
 
     stripeWebhook: asyncHandler(async (req, res) => {
+        // ... (Your webhook code remains the same as it's not directly related to charges)
         const sig = req.headers['stripe-signature'];
         console.log("sig", sig);
-        
+
         let event;
 
         try {
