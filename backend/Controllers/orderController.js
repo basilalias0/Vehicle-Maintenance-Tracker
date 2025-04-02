@@ -92,9 +92,7 @@ const orderController = {
     }),
 
     stripeWebhook: asyncHandler(async (req, res) => {
-        // ... (Your webhook code remains the same as it's not directly related to charges)
         const sig = req.headers['stripe-signature'];
-        console.log("sig", sig);
 
         let event;
 
@@ -107,21 +105,21 @@ const orderController = {
 
         try {
             switch (event.type) {
-                case 'payment_intent.succeeded':
+                case 'charge.succeeded':
                     const paymentIntentSucceeded = event.data.object;
                     await Order.findOneAndUpdate(
                         { stripePaymentIntentId: paymentIntentSucceeded.id },
                         { paymentStatus: PAYMENT_STATUS_PAID, orderStatus: ORDER_STATUS_PROCESSING }
                     );
                     break;
-                case 'payment_intent.payment_failed':
+                case 'charge.succeeded':
                     const paymentIntentFailed = event.data.object;
                     await Order.findOneAndUpdate(
                         { stripePaymentIntentId: paymentIntentFailed.id },
                         { paymentStatus: PAYMENT_STATUS_FAILED }
                     );
                     break;
-                case 'payment_intent.canceled':
+                case 'charge.failed':
                     const paymentIntentCanceled = event.data.object;
                     await Order.findOneAndUpdate(
                         { stripePaymentIntentId: paymentIntentCanceled.id },
