@@ -15,6 +15,7 @@ adminRouter.post('/reset-pin', adminController.resetPassword);
 adminRouter.get('/profile', protect, adminController.getAdminProfile);
 adminRouter.put('/profile', protect, adminController.updateAdminProfile);
 adminRouter.put('/profile/picture', protect, upload('admins').single('profileImage'), adminController.updateAdminProfileImage);
+adminRouter.delete('/:adminId', protect, adminController.deleteAdmin);
 
 // Admin Routes (Authentication and Admin Role Required)
 adminRouter.get('/users', protect, admin, adminController.getAllUsers);

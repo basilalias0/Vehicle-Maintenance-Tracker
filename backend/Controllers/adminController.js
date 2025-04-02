@@ -191,6 +191,27 @@ const adminController = {
             res.status(500).json({ message: 'Internal server error' });
         }
     }),
+    
+    deleteAdmin: asyncHandler(async (req, res) => {
+        const { adminId } = req.params;
+
+        try {
+            if (!mongoose.Types.ObjectId.isValid(adminId)) {
+                return res.status(400).json({ message: 'Invalid admin ID' });
+            }
+
+            const deletedAdmin = await User.findOneAndDelete({ _id: adminId, role: 'admin' });
+
+            if (!deletedAdmin) {
+                return res.status(404).json({ message: 'Admin not found or unauthorized' });
+            }
+
+            res.json({ message: 'Admin deleted successfully' });
+        } catch (error) {
+            console.error('Delete Admin Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
 
     // Get all users (including admins, managers, owners)
     getAllUsers: asyncHandler(async (req, res) => {

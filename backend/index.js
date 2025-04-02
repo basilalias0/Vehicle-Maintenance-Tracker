@@ -19,6 +19,8 @@ const connectDB = async ()=>{
 }
 connectDB()
 
+app.use(cors())
+
 app.use(cookieParser())
 app.use("/api/v1",router)
 app.use(errorHandler)

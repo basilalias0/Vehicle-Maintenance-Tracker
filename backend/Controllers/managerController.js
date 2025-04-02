@@ -397,6 +397,38 @@ const managerController = {
         }
     }),
 
+    deleteManager: asyncHandler(async (req, res) => {
+        const { managerId } = req.params;
+        const loggedInManager = req.user; // Get the currently logged-in manager
+
+        try {
+            if (!mongoose.Types.ObjectId.isValid(managerId)) {
+                return res.status(400).json({ message: 'Invalid manager ID' });
+            }
+
+            const managerToDelete = await Manager.findById(managerId);
+
+            if (!managerToDelete) {
+                return res.status(404).json({ message: 'Manager not found' });
+            }
+
+            if (loggedInManager.storeId.toString() !== managerToDelete.storeId.toString()) {
+                return res.status(403).json({ message: 'Unauthorized to delete this manager' });
+            }
+
+            const deletedManager = await Manager.findByIdAndDelete(managerId);
+
+            if (!deletedManager) {
+                return res.status(404).json({ message: 'Manager not found' }); // Redundant, but just in case
+            }
+
+            res.json({ message: 'Manager deleted successfully' });
+        } catch (error) {
+            console.error('Delete Manager Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
+
     // Get parts inventory for manager's store
     getPartsInventory: asyncHandler(async (req, res) => {
         try {

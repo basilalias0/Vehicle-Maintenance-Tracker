@@ -306,6 +306,27 @@ const ownerController = {
   
         res.json({ message: 'Password reset successfully' });
     }),
+
+    deleteOwner: asyncHandler(async (req, res) => {
+        const ownerId = req.user._id; // Get the ID of the currently logged-in owner
+
+        try {
+            if (!mongoose.Types.ObjectId.isValid(ownerId)) {
+                return res.status(400).json({ message: 'Invalid owner ID' });
+            }
+
+            const deletedOwner = await User.findByIdAndDelete(ownerId);
+
+            if (!deletedOwner) {
+                return res.status(404).json({ message: 'Owner not found' });
+            }
+
+            res.json({ message: 'Owner deleted successfully' });
+        } catch (error) {
+            console.error('Delete Owner Error:', error);
+            res.status(500).json({ message: 'Internal server error' });
+        }
+    }),
 };
 
 module.exports = ownerController;

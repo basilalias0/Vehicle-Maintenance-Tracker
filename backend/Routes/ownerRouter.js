@@ -14,5 +14,6 @@ ownerRouter.post('/forgot-password', ownerController.forgotPassword); // Updated
 ownerRouter.get('/profile', protect, ownerController.getOwnerProfile); // Updated controller function name
 ownerRouter.put('/profile', protect, ownerController.updateOwnerProfile); // Updated controller function name
 ownerRouter.put('/profile/picture', protect, upload('owners').single('profileImage'), ownerController.updateOwnerProfileImage); // Updated controller function name, dynamic upload
+ownerRouter.delete('/owner', protect, ownerController.deleteOwner);
 
 module.exports = ownerRouter;
